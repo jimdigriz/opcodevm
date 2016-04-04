@@ -1,0 +1,7 @@
+.*
+!.gitignore
+
+gmon.out
+*.[do]
+*.gcda
+*.gcno
