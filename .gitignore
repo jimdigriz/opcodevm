@@ -1,7 +1,10 @@
 .*
 !.gitignore
 
+opcodevm
+
 gmon.out
 *.[do]
 *.gcda
 *.gcno
+*.mopt
