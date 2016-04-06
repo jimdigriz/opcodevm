@@ -7,11 +7,12 @@
 #include "ops.h"
 
 /* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
+#define INST(x) case x: goto x
 #define NEXT switch ((*ip++).op) \
 	{ \
 		/* keep in the same order as include/engine.h:'enum op' */ \
-		case RET:	goto RET; \
-		case BSWAP:	goto BSWAP; \
+		INST(RET); \
+		INST(BSWAP); \
 	}
 
 void engine(struct program *program, size_t proglen, struct data *data)
