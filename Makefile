@@ -6,7 +6,7 @@ TARGET		:= opcodevm
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
 CPPFLAGS	+= -Iinclude
-CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_BSD_SOURCE
+CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L
 LDFLAGS		+= -lpthread
 
 CFLAGS		+= -march=native -mtune=native

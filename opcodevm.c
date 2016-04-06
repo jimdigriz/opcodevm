@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <endian.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #ifdef __amd64__
 #include <x86intrin.h>
@@ -120,6 +121,10 @@ int main(int argc, char **argv)
 	struct stat stat;
 	if (fstat(fd, &stat) == -1)
 		err(EX_NOINPUT, "fstat()");
+
+	errno = posix_fadvise(fd, 0, stat.st_size, POSIX_FADV_SEQUENTIAL|POSIX_FADV_WILLNEED);
+	if (errno)
+		warn("posix_fadvise()");
 
 	float *data = mmap(NULL, stat.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (data == MAP_FAILED)
