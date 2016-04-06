@@ -49,6 +49,8 @@ void _endian(void *data, const unsigned int reclen, const unsigned int nrec)
 		for (; i < nrec - (nrec % (256/8/reclen)); i += 256/8/reclen)
 			_mm256_storeu_si256((__m256i *)&v[i*reclen],
 				_mm256_shuffle_epi8(_mm256_loadu_si256((__m256i *)&v[i*reclen]), mm256_mask));
+
+		goto onebyone;
 #endif
 #ifdef __SSSE3__
 		const __m128i mm_mask32 = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
@@ -67,9 +69,12 @@ void _endian(void *data, const unsigned int reclen, const unsigned int nrec)
 		for (; i < nrec - (nrec % (128/8/reclen)); i += 128/8/reclen)
 			_mm_storeu_si128((__m128i *)&v[i*reclen],
 				_mm_shuffle_epi8(_mm_loadu_si128((__m128i *)&v[i*reclen]), mm_mask));
+
+		goto onebyone;
 #endif
 	}
 
+onebyone:
 	switch (reclen) {
 	case 4:
 		for (; i < nrec; i++)
