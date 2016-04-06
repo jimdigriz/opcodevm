@@ -33,5 +33,5 @@ void bswap(struct data *data)
 		warnx("unsupported size %u", data->reclen);
 	}
 
-	assert(offset = data->reclen);
+	assert(offset == data->reclen);
 }
