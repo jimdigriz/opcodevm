@@ -42,8 +42,8 @@ unsigned int endian_x86(void *data, const unsigned int reclen, const unsigned in
 		mask = mask64;
 		break;
 	default:
-		warnx("unknown endian size %u", reclen);
-		abort();
+		warnx("unsupported jet endian size %u, falling back", reclen);
+		return i;
 	}
 
 	for (; i < nrec - (nrec % (VEC_LEN/8/reclen)); i += VEC_LEN/8/reclen)
