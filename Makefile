@@ -6,7 +6,7 @@ TARGET		:= opcodevm
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
 CPPFLAGS	+= -Iinclude
-CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC
+CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -MD -MP -DVERSION="\"$(VERSION)\""
 LDFLAGS		+= -rdynamic -ldl -lpthread
 
 CFLAGS		+= -march=native -mtune=native
@@ -30,35 +30,24 @@ ifndef PROFILE
 endif
 LDFLAGS	+= -Wl,--gc-sections
 
-# http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
-CFLAGS += -MT $@ -MMD -MP -MF $*.Td
-POSTCOMPILE = mv -f $*.Td $*.d
-
 .SUFFIXES:
 
 $(TARGET): $(OBJS)
 
-%: %.o
-	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $^
+%: %.o Makefile
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $(filter %.o, $^)
 ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
 endif
 
-%.o: %.c Makefile %.d
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -DVERSION="\"$(VERSION)\"" -fopt-info-all=$(<:%.c=%).mopt -c -o $@ $<
-	@test -s $(<:%.c=%).mopt || rm $(<:%.c=%).mopt
-	$(POSTCOMPILE)
+%.o: %.c Makefile
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-%.so: %.c Makefile %.d
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -DVERSION="\"$(VERSION)\"" -fopt-info-all=$(<:%.c=%).mopt -shared -nostartfiles -o $@ $<
-	@test -s $(<:%.c=%).mopt || rm $(<:%.c=%).mopt
-	$(POSTCOMPILE)
+%.so: %.c Makefile
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -shared -nostartfiles -o $@ $<
 
 clean:
-	rm -rf $(TARGET) $(OBJS) $(JETS:%.c=%.so) *.d *.mopt
+	rm -rf $(SRCS:%.c=%.d) $(TARGET) $(OBJS)
 .PHONY: clean
 
-%.d: ;
-.PRECIOUS: %.d
-
--include $(patsubst %,%.d,$(basename $(SRCS)))
+-include $(SRCS:%.c=%.d)
