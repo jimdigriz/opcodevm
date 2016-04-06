@@ -1,26 +1,26 @@
 #include <stdint.h>
 #include <stddef.h>
 
-enum endian {
+typedef enum {
 	LITTLE,
 	BIG,
-};
+} endian;
 
-enum op {
+typedef enum {
 	RET	= 0,	/* must be set to zero */
 	BSWAP,
-};
+} code;
 
 /* programs must terminate with a RET (also a zero'd struct) */
 struct program {
-	enum op		op;
+	code		code;
 };
 
 struct data {
 	void		*addr;
 	uint64_t	numrec;
 	unsigned int	reclen;
-	enum endian	endian;
+	endian		endian;
 	char		*path;
 	int		fd;
 };

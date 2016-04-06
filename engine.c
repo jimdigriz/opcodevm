@@ -7,16 +7,16 @@
 
 /* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #define INST(x) case x: goto x
-#define NEXT switch ((*ip++).op) \
+#define NEXT switch ((*ip++).code) \
 	{ \
-		/* keep in the same order as include/engine.h:'enum op' */ \
+		/* keep in the same order as include/engine.h:op */ \
 		INST(RET); \
 		INST(BSWAP); \
 	}
 
 void engine(struct program *program, size_t proglen, struct data *data)
 {
-	if (program[proglen - 1].op != RET) {
+	if (program[proglen - 1].code != RET) {
 		warnx("program needs to end with RET\n");
 		abort();
 	}

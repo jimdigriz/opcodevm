@@ -13,7 +13,7 @@
 #include "engine.h"
 
 struct program program[] = {
-	{ .op	= BSWAP	},
+	{ .code	= BSWAP	},
 	{0},
 };
 
