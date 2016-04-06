@@ -12,7 +12,8 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include <endian.h>
-#include <endian.h>
+#include <errno.h>
+
 #ifdef __amd64__
 #include <x86intrin.h>
 #endif
@@ -23,62 +24,64 @@
 
 #define IS_PAGE_ALIGNED(x) assert((uintptr_t)(const void *)(x) % getpagesize() == 0)
 
-void endian32(void *data, const unsigned int nrec)
+void _endian(void *data, const unsigned int reclen, const unsigned int nrec)
 {
-	uint32_t *v = data;
+	uint8_t *v = data;
 	unsigned int i = 0;
 
 	if (!getenv("NOVEC")) {
 /* http://stackoverflow.com/a/17509569 */
 #ifdef __AVX__
-		const __m256i mask256 = _mm256_set_epi8(28, 29, 30, 31, 24, 25, 26, 27, 20, 21, 22, 23, 16, 17, 18, 19, 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+		const __m256i mm256_mask32 = _mm256_set_epi8(28, 29, 30, 31, 24, 25, 26, 27, 20, 21, 22, 23, 16, 17, 18, 19, 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+		const __m256i mm256_mask64 = _mm256_set_epi8(24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
+		__m256i mm256_mask;
 
-		for (; i < nrec - (nrec % 8); i += 8)
-			_mm256_storeu_si256((__m256i *)&v[i],
-				_mm256_shuffle_epi8(_mm256_loadu_si256((__m256i *)&v[i]), mask256));
+		switch (reclen) {
+		case 4:
+			mm256_mask = mm256_mask32;
+			break;
+		case 8:
+			mm256_mask = mm256_mask64;
+			break;
+		}
+
+		for (; i < nrec - (nrec % (256/8/reclen)); i += 256/8/reclen)
+			_mm256_storeu_si256((__m256i *)&v[i*reclen],
+				_mm256_shuffle_epi8(_mm256_loadu_si256((__m256i *)&v[i*reclen]), mm256_mask));
 #endif
 #ifdef __SSSE3__
-		const __m128i mask = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+		const __m128i mm_mask32 = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+		const __m128i mm_mask64 = _mm_set_epi8(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
+		__m128i mm_mask;
 
-		for (; i < nrec - (nrec % 4); i += 4)
-			_mm_storeu_si128((__m128i *)&v[i],
-				_mm_shuffle_epi8(_mm_loadu_si128((__m128i *)&v[i]), mask));
+		switch (reclen) {
+		case 4:
+			mm_mask = mm_mask32;
+			break;
+		case 8:
+			mm_mask = mm_mask64;
+			break;
+		}
+
+		for (; i < nrec - (nrec % (128/8/reclen)); i += 128/8/reclen)
+			_mm_storeu_si128((__m128i *)&v[i*reclen],
+				_mm_shuffle_epi8(_mm_loadu_si128((__m128i *)&v[i*reclen]), mm_mask));
 #endif
 	}
 
-	do {
-		v[i] = be32toh(v[i]);
-	} while (i++ < nrec);
-}
-
-void endian64(void *data, const unsigned int nrec)
-{
-	uint64_t *v = data;
-	unsigned int i = 0;
-
-	if (!getenv("NOVEC")) {
-#ifdef __AVX__
-		const __m256i mask256 = _mm256_set_epi8(24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
-
-		for (; i < nrec - (nrec % 4); i += 4)
-			_mm256_storeu_si256((__m256i *)&v[i],
-				_mm256_shuffle_epi8(_mm256_loadu_si256((__m256i *)&v[i]), mask256));
-#endif
-#ifdef __SSSE3__
-		const __m128i mask128 = _mm_set_epi8(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
-
-		for (; i < nrec - (nrec % 2); i += 2)
-			_mm_storeu_si128((__m128i *)&v[i],
-				_mm_shuffle_epi8(_mm_loadu_si128((__m128i *)&v[i]), mask128));
-#endif
+	switch (reclen) {
+	case 4:
+		for (; i < nrec; i++)
+			*(uint32_t *)&v[i*reclen] = be32toh(*(uint32_t *)&v[i*reclen]);
+		break;
+	case 8:
+		for (; i < nrec; i++)
+			*(uint64_t *)&v[i*reclen] = be64toh(*(uint64_t *)&v[i*reclen]);
+		break;
 	}
-
-	do {
-		v[i] = be64toh(v[i]);
-	} while (i++ < nrec);
 }
 
-void endian(void *data, int reclen, unsigned int nrec, int byteorder)
+void endian(void *data, const unsigned int reclen, const unsigned int nrec, const int byteorder)
 {
 	IS_PAGE_ALIGNED(data);
 
@@ -98,10 +101,8 @@ void endian(void *data, int reclen, unsigned int nrec, int byteorder)
 
 	switch (reclen) {
 	case 4:
-		endian32(data, nrec);
-		break;
 	case 8:
-		endian64(data, nrec);
+		_endian(data, reclen, nrec);
 		break;
 	}
 }
