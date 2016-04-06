@@ -1,5 +1,4 @@
-SRCS		:= $(wildcard *.c)
-JETS		:= $(wildcard jets/*/*.c)
+SRCS		:= $(wildcard *.c) $(wildcard ops/*.c)
 OBJS		:= $(SRCS:%.c=%.o)
 
 TARGET		:= opcodevm
@@ -37,10 +36,10 @@ POSTCOMPILE = mv -f $*.Td $*.d
 
 .SUFFIXES:
 
-$(TARGET): Makefile $(OBJS) $(JETS:%.c=%.so)
+$(TARGET): $(OBJS)
 
 %: %.o
-	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $^
 ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
 endif
