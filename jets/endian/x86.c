@@ -18,12 +18,14 @@ unsigned int endian_x86(void *data, const unsigned int reclen, const unsigned in
 #	define VEC_LEN	256
 #	define VEC_APP	VEC_LEN
 
+	const __m256i mask16 = _mm256_set_epi8(30, 31, 28, 29, 26, 27, 24, 25, 22, 23, 20, 21, 18, 19, 16, 17, 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
 	const __m256i mask32 = _mm256_set_epi8(28, 29, 30, 31, 24, 25, 26, 27, 20, 21, 22, 23, 16, 17, 18, 19, 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 	const __m256i mask64 = _mm256_set_epi8(24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
 #elif defined(__SSSE3__)
 #	define VEC_LEN	128
 #	define VEC_APP
 
+	const __m128i mask16 = _mm_set_epi8(14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
 	const __m128i mask32 = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 	const __m128i mask64 = _mm_set_epi8(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
 #endif
@@ -35,6 +37,9 @@ unsigned int endian_x86(void *data, const unsigned int reclen, const unsigned in
 	VEC mask;
 
 	switch (reclen) {
+	case 2:
+		mask = mask16;
+		break;
 	case 4:
 		mask = mask32;
 		break;
