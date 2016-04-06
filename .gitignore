@@ -5,6 +5,7 @@ opcodevm
 
 gmon.out
 *.[do]
+*.so
 *.gcda
 *.gcno
 *.mopt

@@ -1,4 +1,5 @@
 SRCS		:= $(wildcard *.c)
+JETS		:= $(wildcard jets/*/*.c)
 OBJS		:= $(SRCS:%.c=%.o)
 
 TARGET		:= opcodevm
@@ -6,8 +7,8 @@ TARGET		:= opcodevm
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
 CPPFLAGS	+= -Iinclude
-CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L
-LDFLAGS		+= -lpthread
+CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC
+LDFLAGS		+= -rdynamic -ldl -lpthread
 
 CFLAGS		+= -march=native -mtune=native
 
@@ -30,15 +31,13 @@ ifndef PROFILE
 endif
 LDFLAGS	+= -Wl,--gc-sections
 
+# http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
+CFLAGS += -MT $@ -MMD -MP -MF $*.Td
+POSTCOMPILE = mv -f $*.Td $*.d
+
 .SUFFIXES:
 
-# http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
-DEPDIR := .d
-$(shell mkdir -p $(DEPDIR) >/dev/null)
-CFLAGS += -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
-POSTCOMPILE = mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
-
-$(TARGET): Makefile $(OBJS)
+$(TARGET): Makefile $(OBJS) $(JETS:%.c=%.so)
 
 %: %.o
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $<
@@ -46,16 +45,21 @@ ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
 endif
 
-%.o: %.c Makefile $(DEPDIR)/%.d
-	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $(CPPFLAGS) -fopt-info-all=$(<:%.c=%).mopt -DVERSION="\"$(VERSION)\"" -o $@ $<
+%.o: %.c Makefile %.d
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -DVERSION="\"$(VERSION)\"" -fopt-info-all=$(<:%.c=%).mopt -c -o $@ $<
+	@test -s $(<:%.c=%).mopt || rm $(<:%.c=%).mopt
+	$(POSTCOMPILE)
+
+%.so: %.c Makefile %.d
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -DVERSION="\"$(VERSION)\"" -fopt-info-all=$(<:%.c=%).mopt -shared -nostartfiles -o $@ $<
 	@test -s $(<:%.c=%).mopt || rm $(<:%.c=%).mopt
 	$(POSTCOMPILE)
 
 clean:
-	rm -rf $(TARGET) $(OBJS) $(DEPDIR) *.mopt
+	rm -rf $(TARGET) $(OBJS) $(JETS:%.c=%.so) *.d *.mopt
 .PHONY: clean
 
-$(DEPDIR)/%.d: ;
-.PRECIOUS: $(DEPDIR)/%.d
+%.d: ;
+.PRECIOUS: %.d
 
--include $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS)))
+-include $(patsubst %,%.d,$(basename $(SRCS)))
