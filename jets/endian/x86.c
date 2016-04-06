@@ -1,6 +1,8 @@
 /* http://stackoverflow.com/a/17509569 */
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <err.h>
 
 #include <x86intrin.h>
 
@@ -39,6 +41,9 @@ unsigned int endian_x86(void *data, const unsigned int reclen, const unsigned in
 	case 8:
 		mask = mask64;
 		break;
+	default:
+		warnx("unknown endian size %u", reclen);
+		abort();
 	}
 
 	for (; i < nrec - (nrec % (VEC_LEN/8/reclen)); i += VEC_LEN/8/reclen)

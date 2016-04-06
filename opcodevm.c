@@ -28,17 +28,6 @@ void endian(void *data, const unsigned int reclen, const unsigned int nrec, cons
 {
 	IS_PAGE_ALIGNED(data);
 
-	switch (reclen) {
-	case 1:
-		return;
-	case 4:
-	case 8:
-		break;
-	default:
-		warnx("unknown endian size %u", reclen);
-		abort();
-	}
-
 	if (__BYTE_ORDER__ == byteorder)
 		return;
 
@@ -49,6 +38,10 @@ void endian(void *data, const unsigned int reclen, const unsigned int nrec, cons
 		i = _endian(data, reclen, nrec);
 
 	switch (reclen) {
+	case 2:
+		for (; i < nrec; i++)
+			*(uint16_t *)&v[i*reclen] = be16toh(*(uint16_t *)&v[i*reclen]);
+		break;
 	case 4:
 		for (; i < nrec; i++)
 			*(uint32_t *)&v[i*reclen] = be32toh(*(uint32_t *)&v[i*reclen]);
@@ -57,6 +50,9 @@ void endian(void *data, const unsigned int reclen, const unsigned int nrec, cons
 		for (; i < nrec; i++)
 			*(uint64_t *)&v[i*reclen] = be64toh(*(uint64_t *)&v[i*reclen]);
 		break;
+	default:
+		warnx("unknown endian size %u", reclen);
+		abort();
 	}
 }
 
