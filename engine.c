@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <err.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include "engine.h"
 #include "ops.h"
@@ -17,9 +16,11 @@
 
 void engine(struct program *program, size_t proglen, struct data *data)
 {
+	if (program[proglen - 1].op != RET) {
+		warnx("program needs to end with RET\n");
+		abort();
+	}
 #ifndef NDEBUG
-	assert(program[proglen - 1].op == RET);
-
 	for (int i = 0; data[i].addr; i++) {
 		if ((uintptr_t)data[i].addr % getpagesize() != 0) {
 			warnx("data[%d] is not page aligned\n", i);
