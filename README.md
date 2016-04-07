@@ -26,7 +26,7 @@ Can be applied to:
  * more codes
      * need an internal data store to aggreate data into
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
- * figure out something better that '-m{arch,tune}=native' for `CFLAGS`
+ * figure out something better that `-m{arch,tune}=native` for `CFLAGS`
 
 # Preflight
 
