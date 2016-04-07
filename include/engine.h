@@ -32,7 +32,7 @@ struct program {
 	size_t		len;
 };
 
-#define OP(x) void (*x)(uint64_t *, struct data *, ...)
+#define OP(x) void (*x[3])(uint64_t *, struct data *, ...)
 struct op {
 	OP(u16);
 	OP(u32);
@@ -43,4 +43,5 @@ struct op {
 void engine_init();
 void engine_run(struct program *, struct data *);
 
-void bswap(struct op *, struct data *, ...);
+void bswap(struct data *, ...);
+struct op* bswap_ops();

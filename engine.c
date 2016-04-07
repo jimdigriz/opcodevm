@@ -12,10 +12,11 @@ const char *opobjs[] = {
 	NULL,
 };
 
-/* RET is not in this list, so -1 the enum value for offset */
-struct op ops[NCODES];
-
 void engine_init() {
+	struct op *ops[NCODES];
+
+	ops[BSWAP - 1] = bswap_ops();
+
 	for (const char **l = opobjs; *l; l++) {
 		void *handle = dlopen(*l, RTLD_NOW);
 		if (!handle) {
@@ -36,12 +37,33 @@ void engine_init() {
 		if (!op)
 			continue;
 
-		if (op->u16)
-			ops[op->code - 1].u16 = op->u16;
-		if (op->u32)
-			ops[op->code - 1].u32 = op->u32;
-		if (op->u64)
-			ops[op->code - 1].u64 = op->u64;
+#define POPULATE(x)	if (op->u##x[i] && !ops[op->code - 1]->u##x[i]) \
+				ops[op->code - 1]->u##x[i] = op->u##x[i]
+		/* not 3 as that is to remain a row of 0's */
+		for (unsigned int i = 0; i < 2; i++) {
+			POPULATE(16);
+			POPULATE(32);
+			POPULATE(64);
+		}
+	}
+
+#define BACKFILL(x)	if (!ops[i]->u##x[0] && ops[i]->u##x[1]) \
+				ops[i]->u##x[0] = ops[i]->u##x[1]
+	for (unsigned int i = 0; i < NCODES; i++) {
+		BACKFILL(16);
+		BACKFILL(32);
+		BACKFILL(64);
+
+#ifndef NDEBUG
+#	define CTERM(x)	if (ops[i]->u##x[2]) {							\
+				warnx("ops[%d]->x table does not have terminating NULL", i);	\
+				abort();							\
+			}
+
+		CTERM(16);
+		CTERM(32);
+		CTERM(64);
+#endif
 	}
 }
 
@@ -75,6 +97,6 @@ void engine_run(struct program *program, struct data *data)
 	RET:
 		return;
 	BSWAP:
-		bswap(&ops[BSWAP - 1], &data[0]);
+		bswap(&data[0]);
 		NEXT;
 }
