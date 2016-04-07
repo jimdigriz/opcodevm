@@ -55,6 +55,8 @@ Can be applied to:
      * [Count-Min](https://sites.google.com/site/countminsketch/)
      * [K-minimum Values](http://research.neustar.biz/2012/07/09/sketch-of-the-day-k-minimum-values/)
      * [HyperLogLog](http://research.neustar.biz/2012/10/25/sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
+ * [The Virginian Database](https://github.com/bakks/virginian) - GPU bytecode database
+     * [`src/vm/vm_gpu.cu`](https://github.com/bakks/virginian/blob/master/src/vm/vm_gpu.cu) is interesting
 
 # Sample Data
 
