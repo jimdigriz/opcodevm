@@ -32,6 +32,12 @@ struct program {
 	size_t		len;
 };
 
+/*
+ * the op struct is walked though, where they are populated via:
+ * slot 0: 'accelerated' implementation, otherwise backfilled from slot 1
+ * slot 1: always C implementation
+ * slot 2: always NULL
+ */
 #define OP(x) void (*x[3])(uint64_t *, struct data *, ...)
 struct op {
 	OP(u16);
