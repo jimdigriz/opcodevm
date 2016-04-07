@@ -1,11 +1,27 @@
 A vector oriented bytecode engine.
 
+Can be applied to:
+
+ * files
+     * column orientated databases
+ * network traffic
+     * IDS
+     * firewalling via `NFQUEUE` over `mmap()`
+ * HTTP handler
+     * RTB
+
 ## Issues
 
+ * need to do an OpenCL op
+ * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
+ * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
+ * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
+ * implement scatter gatter vector support (needed for datagramed payloads)
  * input sources
-     * raw file (endian conversion)
      * embedded HTTP
-     * [`AF_PACKET`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
+     * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
+ * think about a slower low latency option for realtime streaming data
+ * actual client/server, rather than hard coded files and programs
 
 # Preflight
 
