@@ -53,6 +53,9 @@ endif
 
 %.so: %.c Makefile
 	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
+ifdef NDEBUG
+	$(CROSS_COMPILE)strip $@
+endif
 
 clean:
 	rm -rf $(SRCS:%.c=%.d) $(TARGETS) $(OBJS)
