@@ -28,6 +28,7 @@ Can be applied to:
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
  * figure out something better that `-m{arch,tune}=native` for `CFLAGS`
  * {Net,Open}BSD and Mac OS X support
+     * remove GNU'isms
 
 # Preflight
 
