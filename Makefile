@@ -1,12 +1,18 @@
-SRCS		:= $(wildcard *.c) $(wildcard ops/*.c)
-OBJS		:= $(SRCS:%.c=%.o)
+SRCS		:= $(wildcard *.c)
+CODESRCS	:= $(wildcard code/*.c)
+CODEOBJS	:= $(CODESRCS:%.c=%.o)
+OBJS		:= $(SRCS:%.c=%.o) $(CODEOBJS)
+
+OPSRCS		:= $(foreach s,$(basename $(CODESRCS)),$(wildcard $(s)/*.c))
+OPOBJS		:= $(OPSRCS:%.c=%.so)
 
 TARGET		:= opcodevm
+TARGETS		:= $(TARGET) $(OPOBJS)
 
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
-CPPFLAGS	+= -Iinclude
-CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -MD -MP -DVERSION="\"$(VERSION)\""
+CPPFLAGS	+= -MD -MP -Iinclude -I.
+CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -DVERSION="\"$(VERSION)\""
 LDFLAGS		+= -rdynamic -ldl -lpthread
 
 CFLAGS		+= -march=native -mtune=native
@@ -32,6 +38,8 @@ LDFLAGS	+= -Wl,--gc-sections
 
 .SUFFIXES:
 
+all: $(TARGETS)
+
 $(TARGET): $(OBJS)
 
 %: %.o Makefile
@@ -41,13 +49,13 @@ ifdef NDEBUG
 endif
 
 %.o: %.c Makefile
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.so: %.c Makefile
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CPPFLAGS) -shared -nostartfiles -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
 
 clean:
-	rm -rf $(SRCS:%.c=%.d) $(TARGET) $(OBJS)
+	rm -rf $(SRCS:%.c=%.d) $(TARGETS) $(OBJS)
 .PHONY: clean
 
 -include $(SRCS:%.c=%.d)

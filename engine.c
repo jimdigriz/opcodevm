@@ -1,22 +1,56 @@
 #include <unistd.h>
 #include <err.h>
+#include <sysexits.h>
 #include <stdlib.h>
+#include <dlfcn.h>
 
 #include "engine.h"
-#include "ops.h"
 
-/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
-#define INST(x) case x: goto x
-#define NEXT switch ((*ip++).code) \
-	{ \
-		/* keep in the same order as include/engine.h:op */ \
-		INST(RET); \
-		INST(BSWAP); \
+const char *opobjs[] = {
+	"code/bswap/c.so",
+	NULL,
+};
+
+/* RET is not in this list, so -1 the enum value for offset */
+struct op ops[NCODES];
+
+void engine_init() {
+	for (const char **l = opobjs; *l; l++) {
+		void *handle = dlopen(*l, RTLD_NOW);
+		if (!handle) {
+			warnx("dlopen(%s): %s\n", *l, dlerror());
+			abort();
+		}
+
+		dlerror();
+
+		struct op *(*init)() = (struct op *(*)())(intptr_t)dlsym(handle, "init");
+		char *error = dlerror();
+		if (error) {
+			warnx("dlsym(%s): %s\n", *l, error);
+			abort();
+		}
+
+		struct op *op = init();
+		if (op->u16)
+			ops[op->code - 1].u16 = op->u16;
+		if (op->u32)
+			ops[op->code - 1].u32 = op->u32;
+		if (op->u64)
+			ops[op->code - 1].u64 = op->u64;
 	}
+}
 
-void engine(struct program *program, size_t proglen, struct data *data)
+
+#define NEXT switch ((*ip++).code) \
+{ \
+	case RET:	goto RET; \
+	case BSWAP:	goto BSWAP; \
+}
+
+void engine_run(struct program *program, struct data *data)
 {
-	if (program[proglen - 1].code != RET) {
+	if (program->insns[program->len - 1].code != RET) {
 		warnx("program needs to end with RET\n");
 		abort();
 	}
@@ -29,13 +63,14 @@ void engine(struct program *program, size_t proglen, struct data *data)
 	}
 #endif
 
-	struct program *ip = program;
+	/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
+	struct insn *ip = program->insns;
 
 	NEXT;
 
 	RET:
 		return;
 	BSWAP:
-		bswap(&data[0]);
+		bswap(&ops[BSWAP - 1], &data[0]);
 		NEXT;
 }

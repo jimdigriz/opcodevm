@@ -12,9 +12,16 @@
 
 #include "engine.h"
 
-struct program program[] = {
+#define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
+
+struct insn insns[] = {
 	{ .code	= BSWAP	},
 	{0},
+};
+
+struct program program = {
+	.insns	= insns,
+	.len	= ARRAY_SIZE(insns),
 };
 
 struct data data[] = {
@@ -24,6 +31,8 @@ struct data data[] = {
 
 int main(int argc, char **argv)
 {
+	engine_init();
+
 	if (getenv("DATAFILE"))
 		data[0].path = getenv("DATAFILE");
 
@@ -48,7 +57,7 @@ int main(int argc, char **argv)
 	if (data[0].addr == MAP_FAILED)
 		err(EX_OSERR, "mmap()");
 
-	engine(program, sizeof(program)/sizeof(struct program), data);
+	engine_run(&program, data);
 
 	float *d = data[0].addr;
 	for (uint64_t i = 0; i < data[0].numrec; i++)
