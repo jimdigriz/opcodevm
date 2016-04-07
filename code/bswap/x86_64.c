@@ -8,7 +8,7 @@
 #define CONCAT(a,b) CONCAT_(a,b)
 #define CONCAT_(a,b) a##b
 
-#if defined(__AXV__)
+#if defined(__AVX__)
 #	define VEC_LEN	256
 #	define VEC_APP	VEC_LEN
 #elif defined(__SSSE3__)
@@ -24,7 +24,7 @@
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	static void bswap##x(uint64_t *offset, struct data *data, ...)		\
+#define FUNC(x)	static void bswap##x##_x86_64(uint64_t *offset, struct data *data, ...)	\
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\
@@ -39,9 +39,9 @@ FUNC(16)
 FUNC(32)
 FUNC(64)
 
-#define F(x) .u##x = bswap##x
+#define F(x) .u##x = { bswap##x##_x86_64, NULL }
 static struct op op = {
-	.code = BSWAP,
+	.code	= BSWAP,
 	F(16),
 	F(32),
 	F(64),
@@ -52,7 +52,7 @@ struct op* init()
 	if (getenv("NOACCEL"))
 		return NULL;
 
-#if defined(__AXV__)
+#if defined(__AVX__)
 	mask16 = _mm256_set_epi8(30, 31, 28, 29, 26, 27, 24, 25, 22, 23, 20, 21, 18, 19, 16, 17, 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
 	mask32 = _mm256_set_epi8(28, 29, 30, 31, 24, 25, 26, 27, 20, 21, 22, 23, 16, 17, 18, 19, 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 	mask64 = _mm256_set_epi8(24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
@@ -60,6 +60,8 @@ struct op* init()
 	mask16 = _mm_set_epi8(14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
 	mask32 = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 	mask64 = _mm_set_epi8(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
+#else
+	return NULL;
 #endif
 
 	return &op;

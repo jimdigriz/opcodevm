@@ -3,7 +3,7 @@
 
 #include "engine.h"
 
-#define FUNC(x)	static void bswap##x(uint64_t *offset, struct data *data, ...)		\
+#define FUNC(x)	static void bswap##x##_c(uint64_t *offset, struct data *data, ...)	\
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\
@@ -16,9 +16,9 @@ FUNC(16)
 FUNC(32)
 FUNC(64)
 
-#define F(x) .u##x = bswap##x
+#define F(x) .u##x = { NULL, bswap##x##_c }
 static struct op op = {
-	.code = BSWAP,
+	.code	= BSWAP,
 	F(16),
 	F(32),
 	F(64),
