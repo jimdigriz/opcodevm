@@ -41,3 +41,9 @@ A vector oriented bytecode engine.
  * [HistData](http://www.histdata.com/download-free-forex-data/) ([format](http://www.histdata.com/f-a-q/data-files-detailed-specification/))
  * [GAIN Capital](http://ratedata.gaincapital.com/)
  * [Pepperstone](https://pepperstone.com/en/client-resources/historical-tick-data)
+
+## Example
+
+    cat DAT_ASCII_EURUSD_T_201603.csv | cut -d, -f2 | perl -ne 'print pack "f>", $_' > datafile
+    for I in $(seq 1 100); do cat datafile >> datafile2; done
+    mv datafile2 database
