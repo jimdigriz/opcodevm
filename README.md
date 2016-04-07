@@ -6,7 +6,7 @@ Can be applied to:
      * column orientated databases
  * network traffic
      * IDS
-     * firewalling via `NFQUEUE` over `mmap()`
+     * firewalling
  * HTTP handler
      * RTB
 
@@ -20,8 +20,12 @@ Can be applied to:
  * input sources
      * embedded HTTP
      * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
+     * `NFQUEUE` over `mmap()`
  * think about a slower low latency option for realtime streaming data
  * actual client/server, rather than hard coded files and programs
+ * more codes
+     * need an internal data store to aggreate data into
+     * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
 
 # Preflight
 
