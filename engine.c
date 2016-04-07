@@ -67,11 +67,11 @@ void engine_init() {
 	}
 }
 
-
+#define CODE(x) case x: goto x
 #define NEXT switch ((*ip++).code) \
 { \
-	case RET:	goto RET; \
-	case BSWAP:	goto BSWAP; \
+	CODE(RET); \
+	CODE(BSWAP); \
 }
 
 void engine_run(struct program *program, struct data *data)
