@@ -19,5 +19,5 @@ void bswap(struct op *ops, struct data *data, ...)
 		break;
 	}
 
-	assert(offset == data->numrec);
+//	assert(offset == data->numrec);
 }

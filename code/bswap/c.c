@@ -3,7 +3,7 @@
 
 #include "engine.h"
 
-#define FUNC(x)	static void bswap##x(uint64_t *offset, struct data *data, ...)	\
+#define FUNC(x)	static void bswap##x(uint64_t *offset, struct data *data, ...)		\
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\

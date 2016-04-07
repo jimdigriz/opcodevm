@@ -8,6 +8,7 @@
 
 const char *opobjs[] = {
 	"code/bswap/c.so",
+	"code/bswap/x86_64.so",
 	NULL,
 };
 
@@ -32,6 +33,9 @@ void engine_init() {
 		}
 
 		struct op *op = init();
+		if (!op)
+			continue;
+
 		if (op->u16)
 			ops[op->code - 1].u16 = op->u16;
 		if (op->u32)
