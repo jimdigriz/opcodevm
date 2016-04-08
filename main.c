@@ -49,13 +49,13 @@ int main(int argc, char **argv)
 	data[0].numrec = stat.st_size / data[0].reclen;
 	data[0].endian = BIG;
 
-	errno = posix_fadvise(data[0].fd, 0, data[0].numrec * data[0].reclen, POSIX_FADV_SEQUENTIAL|POSIX_FADV_WILLNEED);
-	if (errno)
-		warn("posix_fadvise()");
-
 	data[0].addr = mmap(NULL, data[0].numrec * data[0].reclen, PROT_READ|PROT_WRITE, MAP_PRIVATE, data[0].fd, 0);
 	if (data[0].addr == MAP_FAILED)
 		err(EX_OSERR, "mmap()");
+
+	errno = posix_madvise(data[0].addr, data[0].numrec * data[0].reclen, MADV_SEQUENTIAL);
+	if (errno)
+		warn("posix_madvise()");
 
 	engine_run(&program, data);
 
