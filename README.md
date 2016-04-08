@@ -12,7 +12,7 @@ Can be applied to:
 
 ## Issues
 
- * need a benchmarker, especially as the `dlopen()`/OpenCL hooks make everything slower
+ * need a benchmarker, especially as the `dlopen()`/OpenCL hooks make everything slower; about 40ms out of a 100ms runtime (`time env NODISP=1 NOCL=1 strace -tt ./opcodevm 2>&1 | sed -n '1 p; /madvise/ p'`)
      * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
  * OpenCL works when running under pocl as I assume the `mmap()` just works, however for a GPU we probably need a 2MB work buffer or something and to cycle on it
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
