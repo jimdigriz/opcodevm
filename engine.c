@@ -7,7 +7,7 @@
 #include "engine.h"
 
 /* order is important, 'fastest' needs to be at the end */
-const char *opobjs[] = {
+static const char *opobjs[] = {
 	"code/bswap/c.so",
 	"code/bswap/x86_64.so",
 	NULL,

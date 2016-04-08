@@ -14,17 +14,17 @@
 
 #define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 
-struct insn insns[] = {
+static struct insn insns[] = {
 	{ .code	= BSWAP	},
 	{0},
 };
 
-struct program program = {
+static struct program program = {
 	.insns	= insns,
 	.len	= ARRAY_SIZE(insns),
 };
 
-struct data data[] = {
+static struct data data[] = {
 	{ .path	= "datafile" },
 	{0},
 };
