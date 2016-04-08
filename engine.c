@@ -40,7 +40,7 @@ void engine_init() {
 			continue;
 		}
 
-#define POPULATE(x)	if (op->u##x[i] && !ops[op->code - 1]->u##x[i]) \
+#define POPULATE(x)	if (op->u##x[i]) \
 				ops[op->code - 1]->u##x[i] = op->u##x[i]
 		/* not 3 as that is to remain a row of 0's */
 		for (unsigned int i = 0; i < 2; i++) {
