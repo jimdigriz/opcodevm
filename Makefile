@@ -21,10 +21,8 @@ CFLAGS		+= -march=native -mtune=native
 ifdef NDEBUG
 	CFLAGS	+= -O3 -fstack-protector-strong -DNDEBUG
 else
-	CFLAGS	+= -O0 -g3
-# -fstack-protector-all
-# -fsanitize=address
-#	LDFLAGS	+= -fsanitize=address
+	CFLAGS	+= -O0 -g3 -fstack-protector-all -fsanitize=address
+	LDFLAGS	+= -fsanitize=address
 endif
 
 ifdef PROFILE
