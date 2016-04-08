@@ -40,9 +40,7 @@ LDFLAGS	+= -Wl,--gc-sections
 
 all: $(TARGETS)
 
-$(TARGET): $(OBJS)
-
-%: %.o Makefile
+$(TARGET): $(OBJS) Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $(filter %.o, $^)
 ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
