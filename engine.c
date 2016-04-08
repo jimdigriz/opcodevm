@@ -19,7 +19,7 @@ void engine_init() {
 	ops[BSWAP - 1] = bswap_ops();
 
 	for (const char **l = opobjs; *l; l++) {
-		void *handle = dlopen(*l, RTLD_NOW);
+		void *handle = dlopen(*l, RTLD_NOW|RTLD_LOCAL);
 		if (!handle) {
 			warnx("dlopen(%s): %s\n", *l, dlerror());
 			abort();
