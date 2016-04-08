@@ -12,9 +12,10 @@ Can be applied to:
 
 ## Issues
 
+ * need a benchmarker, especially as the `dlopen()`/OpenCL hooks make everything slower
+     * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
  * OpenCL works when running under pocl as I assume the `mmap()` just works, however for a GPU we probably need a 2MB work buffer or something and to cycle on it
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
- * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
  * implement scatter gatter vector support (needed for datagramed payloads)
@@ -22,7 +23,7 @@ Can be applied to:
      * embedded HTTP
      * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
      * `NFQUEUE` over `mmap()`
- * think about a slower low latency option for realtime streaming data
+ * think about a slower low latency option suitable for realtime streaming data (NAPI-esque)
  * actual client/server, rather than hard coded files and programs
  * more codes
      * need an internal data store to aggreate data into
