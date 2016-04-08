@@ -13,6 +13,7 @@ Can be applied to:
 ## Issues
 
  * need to do an OpenCL op
+ * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
  * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
@@ -27,6 +28,7 @@ Can be applied to:
      * need an internal data store to aggreate data into
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
  * figure out something better that `-m{arch,tune}=native` for `CFLAGS`
+ * compile only the ops that will work for the target, for example do not cook `x86_64` on ARM kit
  * {Net,Open}BSD and Mac OS X support
      * remove GNU'isms
 
