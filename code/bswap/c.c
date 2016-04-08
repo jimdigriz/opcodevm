@@ -7,7 +7,6 @@
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\
-			*d += *offset;							\
 			for (; *offset < data->numrec; (*offset)++)			\
 				d[*offset] = bswap_##x(d[*offset]);			\
 		}

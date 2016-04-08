@@ -28,9 +28,8 @@ static VEC mask16, mask32, mask64;
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\
-			*d += *offset;							\
-			for (; *offset < data->numrec - (data->numrec % (VEC_LEN/8));	\
-					*offset += VEC_LEN/8)				\
+			for (; *offset < data->numrec - (data->numrec % (VEC_LEN/x));	\
+					*offset += VEC_LEN/x)				\
 				VEC_STR((VEC *)&d[*offset],				\
 				VEC_SHF(VEC_LDR((VEC *)&d[*offset]), mask##x));		\
 		}
