@@ -35,8 +35,10 @@ void engine_init() {
 		}
 
 		struct op *op = init();
-		if (!op)
+		if (!op) {
+			dlclose(handle);
 			continue;
+		}
 
 #define POPULATE(x)	if (op->u##x[i] && !ops[op->code - 1]->u##x[i]) \
 				ops[op->code - 1]->u##x[i] = op->u##x[i]
