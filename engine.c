@@ -10,6 +10,7 @@
 static const char *opobjs[] = {
 	"code/bswap/c.so",
 	"code/bswap/x86_64.so",
+	"code/bswap/opencl.so",
 	NULL,
 };
 

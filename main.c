@@ -59,6 +59,9 @@ int main(int argc, char **argv)
 
 	engine_run(&program, data);
 
+	if (getenv("NODISP"))
+		return 0;
+
 	float *d = data[0].addr;
 	for (uint64_t i = 0; i < data[0].numrec; i++)
 		printf("%f\n", d[i]);

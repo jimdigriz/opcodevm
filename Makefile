@@ -13,15 +13,18 @@ VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet ||
 
 CPPFLAGS	+= -MD -MP -Iinclude -I.
 CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -DVERSION="\"$(VERSION)\""
-LDFLAGS		+= -rdynamic -ldl -lpthread
+LDFLAGS		+= -rdynamic -lpthread
+LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
 CFLAGS		+= -march=native -mtune=native
 
 ifdef NDEBUG
 	CFLAGS	+= -O3 -fstack-protector-strong -DNDEBUG
 else
-	CFLAGS	+= -Og -g3 -fstack-protector-all -fsanitize=address
-	LDFLAGS	+= -fsanitize=address
+	CFLAGS	+= -O0 -g3
+# -fstack-protector-all
+# -fsanitize=address
+#	LDFLAGS	+= -fsanitize=address
 endif
 
 ifdef PROFILE
@@ -41,7 +44,7 @@ LDFLAGS	+= -Wl,--gc-sections
 all: $(TARGETS)
 
 $(TARGET): $(OBJS) Makefile
-	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -o $@ $(filter %.o, $^)
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -o $@ $(filter %.o, $^)
 ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
 endif
@@ -50,7 +53,7 @@ endif
 	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.so: %.c Makefile
-	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS_SO) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
 ifdef NDEBUG
 	$(CROSS_COMPILE)strip $@
 endif

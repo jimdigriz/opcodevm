@@ -48,7 +48,7 @@ static struct op op = {
 
 struct op* init()
 {
-	if (getenv("NOACCEL"))
+	if (getenv("NOARCH"))
 		return NULL;
 
 #if defined(__AVX__)

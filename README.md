@@ -36,6 +36,18 @@ Can be applied to:
 
  * OpenCL 1.2 dev ([`ocl-icd-opencl-dev`](https://packages.debian.org/search?keywords=ocl-icd-opencl-dev) and [`opencl-headers`](https://packages.debian.org/search?keywords=opencl-headers))
 
+    make
+
+# Usage
+
+    time env NODISP=1 NOCL=1 ./opcodevm
+
+The following environment variables are available:
+
+ * **`NODISP`:** do not display the results
+ * **`NOARCH`:** skip arch specific jets
+ * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
+
 # Related Links
 
  * [element distinctness/uniqueness](http://en.wikipedia.org/wiki/Element_distinctness_problem)
@@ -73,4 +85,4 @@ Can be applied to:
 
     cat DAT_ASCII_EURUSD_T_201603.csv | cut -d, -f2 | perl -ne 'print pack "f>", $_' > datafile
     for I in $(seq 1 100); do cat datafile >> datafile2; done
-    mv datafile2 database
+    mv datafile2 datafile
