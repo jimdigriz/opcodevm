@@ -111,7 +111,7 @@ struct op* init()
 	munmap(src, stat.st_size);
 	close(fd);
 
-	cl_ret = clBuildProgram(program, 1, &devices, "-cl-opt-disable", NULL, NULL);
+	cl_ret = clBuildProgram(program, 1, &devices, "", NULL, NULL);
 	CL_CHKERR(clBuildProgram);
 
 	kernel32 = clCreateKernel(program, "bswap32", &cl_ret);

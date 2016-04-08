@@ -12,7 +12,7 @@ Can be applied to:
 
 ## Issues
 
- * need to do an OpenCL op
+ * OpenCL works when running under pocl as I assume the `mmap()` just works, however for a GPU we probably need a 2MB work buffer or something and to cycle on it
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
  * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
