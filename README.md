@@ -37,7 +37,14 @@ Can be applied to:
 
  * OpenCL 1.2 dev ([`ocl-icd-opencl-dev`](https://packages.debian.org/search?keywords=ocl-icd-opencl-dev) and [`opencl-headers`](https://packages.debian.org/search?keywords=opencl-headers))
 
+Simply type:
+
     make
+
+The following environment variables are available:
+
+ * **`NDEBUG`:** optimised build
+ * **`PROFILE`:** include profiling
 
 # Usage
 
