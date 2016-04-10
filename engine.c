@@ -18,8 +18,6 @@ static const char *opobjs[] = {
 };
 
 static long pagesize;
-
-#define MAXMLOCKSIZE 2*1024*1024
 static unsigned int mlocksize;
 
 void engine_init() {
@@ -27,12 +25,16 @@ void engine_init() {
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
+	const long l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+	if (l2_cache_size == -1)
+		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
+
 	struct rlimit rlim;
 	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
 		err(EX_OSERR, "getrlimit(RLIMIT_MEMLOCK)");
 
-	mlocksize = (MAXMLOCKSIZE < rlim.rlim_cur)
-			? MAXMLOCKSIZE
+	mlocksize = ((unsigned int)l2_cache_size/2 < rlim.rlim_cur)
+			? (unsigned int)l2_cache_size/2
 			: rlim.rlim_cur;
 	if (mlocksize < pagesize)
 		errx(EX_SOFTWARE, "mlocksize is less than pagesize");
