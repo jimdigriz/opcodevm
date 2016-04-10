@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <err.h>
+#include <inttypes.h>
 #include <sysexits.h>
 #include <stdlib.h>
 #include <dlfcn.h>
@@ -128,7 +129,7 @@ void engine_run(struct program *program, struct data *data)
 				: data[0].numrec - i;
 
 		if (mlock(d.addr, d.numrec * d.reclen) == -1)
-			err(EX_OSERR, "mlock(%d)", d.numrec * d.reclen);
+			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
 
 		struct insn *ip = program->insns;
 
@@ -136,7 +137,7 @@ void engine_run(struct program *program, struct data *data)
 
 		RET:
 			if (munlock(d.addr, d.numrec * d.reclen))
-				err(EX_OSERR, "munlock(%d)", d.numrec * d.reclen);
+				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
 			continue;
 		BSWAP:
 			bswap(&d);
