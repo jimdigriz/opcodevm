@@ -56,6 +56,12 @@ The following environment variables are available:
  * **`NOARCH`:** skip arch specific jets
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
 
+By increasing `RLIMIT_MEMLOCK` you increase the work done per cycle which can make particular engines (such as the OpenCL one) run faster:
+
+    sudo -s
+    ulimit -l 2048
+    time env NODISP=1 ./opcodevm
+
 # Related Links
 
  * [element distinctness/uniqueness](http://en.wikipedia.org/wiki/Element_distinctness_problem)

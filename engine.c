@@ -3,6 +3,9 @@
 #include <sysexits.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/mman.h>
 
 #include "engine.h"
 
@@ -14,7 +17,26 @@ static const char *opobjs[] = {
 	NULL,
 };
 
+static long pagesize;
+
+#define MAXMLOCKSIZE 2*1024*1024
+static unsigned int mlocksize;
+
 void engine_init() {
+	pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
+
+	struct rlimit rlim;
+	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
+		err(EX_OSERR, "getrlimit(RLIMIT_MEMLOCK)");
+
+	mlocksize = (MAXMLOCKSIZE < rlim.rlim_cur)
+			? MAXMLOCKSIZE
+			: rlim.rlim_cur;
+	if (mlocksize < pagesize)
+		errx(EX_SOFTWARE, "mlocksize is less than pagesize");
+
 	struct op *ops[NCODES];
 
 	ops[BSWAP - 1] = bswap_ops();
@@ -71,6 +93,7 @@ void engine_init() {
 	}
 }
 
+/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #define CODE(x) case x: goto x
 #define NEXT switch ((*ip++).code) \
 { \
@@ -84,23 +107,36 @@ void engine_run(struct program *program, struct data *data)
 		warnx("program needs to end with RET\n");
 		abort();
 	}
-#ifndef NDEBUG
-	for (int i = 0; data[i].addr; i++) {
-		if ((uintptr_t)data[i].addr % getpagesize() != 0) {
+
+	for (unsigned int i = 0; data[i].addr; i++) {
+		if ((uintptr_t)data[i].addr % pagesize) {
 			warnx("data[%d] is not page aligned\n", i);
 			abort();
 		}
 	}
-#endif
 
-	/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
-	struct insn *ip = program->insns;
+	for (uint64_t i = 0; i < data[0].numrec; i += mlocksize / data[0].reclen) {
+		struct data d = {
+			.addr	= &((uint8_t *)data[0].addr)[i * data[0].reclen],
+			.reclen	= data[0].reclen,
+			.endian = data[0].endian,
+		};
+		d.numrec = ((data[0].numrec - i) > mlocksize / data[0].reclen)
+				? mlocksize / data[0].reclen
+				: data[0].numrec - i;
 
-	NEXT;
+		if (mlock(d.addr, d.numrec * d.reclen) == -1)
+			err(EX_OSERR, "mlock(%d)", mlocksize);
 
-	RET:
-		return;
-	BSWAP:
-		bswap(&data[0]);
+		struct insn *ip = program->insns;
+
 		NEXT;
+
+		RET:
+			munlock(d.addr, d.numrec * d.reclen);
+			continue;
+		BSWAP:
+			bswap(&d);
+			NEXT;
+	}
 }
