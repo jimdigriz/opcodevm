@@ -58,9 +58,7 @@ The following environment variables are available:
 
 By increasing `RLIMIT_MEMLOCK` you increase the work done per cycle which can make particular engines (such as the OpenCL one) run faster:
 
-    sudo -s
-    ulimit -l 2048
-    time env NODISP=1 ./opcodevm
+    sudo bash -c "ulimit -l 2048 && time env NODISP=1 NOCL=1 ./opcodevm"
 
 # Related Links
 
