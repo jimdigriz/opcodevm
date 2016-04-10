@@ -128,14 +128,15 @@ void engine_run(struct program *program, struct data *data)
 				: data[0].numrec - i;
 
 		if (mlock(d.addr, d.numrec * d.reclen) == -1)
-			err(EX_OSERR, "mlock(%d)", mlocksize);
+			err(EX_OSERR, "mlock(%d)", d.numrec * d.reclen);
 
 		struct insn *ip = program->insns;
 
 		NEXT;
 
 		RET:
-			munlock(d.addr, d.numrec * d.reclen);
+			if (munlock(d.addr, d.numrec * d.reclen))
+				err(EX_OSERR, "munlock(%d)", d.numrec * d.reclen);
 			continue;
 		BSWAP:
 			bswap(&d);
