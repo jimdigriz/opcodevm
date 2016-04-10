@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	if (data[0].addr == MAP_FAILED)
 		err(EX_OSERR, "mmap()");
 
-	errno = posix_madvise(data[0].addr, data[0].numrec * data[0].reclen, MADV_SEQUENTIAL);
+	errno = posix_madvise(data[0].addr, data[0].numrec * data[0].reclen, MADV_SEQUENTIAL|MADV_WILLNEED);
 	if (errno)
 		warn("posix_madvise()");
 
