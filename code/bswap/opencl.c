@@ -45,6 +45,12 @@ static void bswap32_opencl(uint64_t *offset, struct data *data, ...) {
 	cl_ret = clEnqueueNDRangeKernel(command_queue, kernel32, 1, NULL, global_work_size, NULL, 0, NULL, NULL);
 	CL_CHKERR(clEnqueueNDRangeKernel);
 
+	cl_ret = clFlush(command_queue);
+	CL_CHKERR(clFlush);
+
+	cl_ret = clFinish(command_queue);
+	CL_CHKERR(clFinish);
+
 	cl_ret = clEnqueueUnmapMemObject(command_queue, memobj, addr, 0, NULL, NULL);
 	CL_CHKERR(clEnqueueUnmapMemObject);
 
