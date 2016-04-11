@@ -158,7 +158,7 @@ static void * engine_instance(void *arg)
 			pos += (mlocksize / d.reclen) * instances;
 			continue;
 		BSWAP:
-			bswap(&d);
+			bswap(&data, ip->k);
 			NEXT;
 	}
 

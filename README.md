@@ -53,7 +53,7 @@ The following environment variables are available:
 
 # Usage
 
-    time env NODISP=1 NOCL=1 ./opcodevm
+    time env NODISP=1 NOCL=1 ./opcodevm FILE...
 
 The following environment variables are available:
 
@@ -66,7 +66,7 @@ By increasing `RLIMIT_MEMLOCK` (defaults to 64kB) you increase the work done per
 
     sudo bash -c "ulimit -l $(($(getconf LEVEL2_CACHE_SIZE)/1024/2)) && time env NODISP=1 NOCL=1 ./opcodevm"
 
-**N.B.** the effective `RLIMIT_MEMLOCK` is divided by `INSTANCES`
+**N.B.** the effective `RLIMIT_MEMLOCK` is divided by the number of data files you pass in as well `INSTANCES`
 
 # Related Links
 

@@ -12,7 +12,7 @@ TARGETS		:= $(TARGET) $(OPOBJS)
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
 CPPFLAGS	+= -MD -MP -Iinclude -I.
-CFLAGS		+= -std=c99 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -pthread -DVERSION="\"$(VERSION)\""
+CFLAGS		+= -std=c11 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -pthread -DVERSION="\"$(VERSION)\""
 LDFLAGS		+= -rdynamic -lpthread -pthread
 LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
