@@ -29,7 +29,7 @@ void engine_init() {
 	errno = 0;
 	if (getenv("INSTANCES"))
 		instances = strtol(getenv("INSTANCES"), NULL, 10);
-	if (errno == ERANGE)
+	if (errno == ERANGE || instances < 0)
 		err(EX_DATAERR, "invalid INSTANCES");
 	if (instances == 0)
 		instances = sysconf(_SC_NPROCESSORS_ONLN);
