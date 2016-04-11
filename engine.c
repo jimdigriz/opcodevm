@@ -21,8 +21,7 @@ static const char *opobjs[] = {
 };
 
 static long instances = 1;
-static long pagesize;
-static long l2_cache_size;
+static long pagesize, l1_dcache_linesize, l2_cache_size;
 
 void engine_init() {
 	errno = 0;
@@ -38,6 +37,12 @@ void engine_init() {
 	pagesize = sysconf(_SC_PAGESIZE);
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
+
+	l1_dcache_linesize = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+	if (l1_dcache_linesize == -1)
+		err(EX_OSERR, "sysconf(_SC_LEVEL1_DCACHE_LINESIZE)");
+	if (pagesize % l1_dcache_linesize)
+		errx(EX_SOFTWARE, "pagesize %% l1_dcache_linesize");
 
 	l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
 	if (l2_cache_size == -1)
@@ -128,17 +133,16 @@ static void * engine_instance(void *arg)
 		if (eii->data[i].numrec < numrec)
 			numrec = eii->data[i].numrec;
 
-		if (eii->data[i].reclen > reclen)
-			reclen = eii->data[i].reclen;
+		reclen += eii->data[i].reclen;
 	}
 
 	uint64_t *R = calloc(eii->program->rwords, sizeof(uint64_t));
 	if (!R)
 		errx(EX_OSERR, "calloc(R)");
 
-	/* we divide by two so not to saturate the cache */
-	const uint64_t stride = l2_cache_size / reclen / 2;
-
+	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
+	const uint64_t stride = (l2_cache_size / reclen / 2)
+					- ((l2_cache_size / reclen / 2) % pagesize);
 	for (uint64_t pos = eii->instance * stride; pos < numrec; pos += stride) {
 		for (unsigned int i = 0; i < eii->ndata; i++) {
 			d[i].addr	= &((uint8_t *)eii->data[i].addr)[pos * eii->data[i].reclen];
