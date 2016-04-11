@@ -45,6 +45,7 @@ The following environment variables are available:
 
  * **`NDEBUG`:** optimised build
  * **`PROFILE`:** include profiling
+ * **`NOSTRIP`:** do not strip the binary (default when not using `NDEBUG`)
 
 # Usage
 

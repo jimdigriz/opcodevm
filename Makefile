@@ -23,6 +23,7 @@ ifdef NDEBUG
 else
 	CFLAGS	+= -O0 -g3 -fstack-protector-all -fsanitize=address
 	LDFLAGS	+= -fsanitize=address
+	NOSTRIP	:= 1
 endif
 
 ifdef PROFILE
@@ -43,7 +44,7 @@ all: $(TARGETS)
 
 $(TARGET): $(OBJS) Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -o $@ $(filter %.o, $^)
-ifdef NDEBUG
+ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif
 
@@ -52,7 +53,7 @@ endif
 
 %.so: %.c Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS_SO) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
-ifdef NDEBUG
+ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif
 
