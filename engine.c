@@ -138,7 +138,7 @@ static void * engine_instance(void *arg)
 		const unsigned int len = d.numrec * d.reclen;
 
 		if (mlock(d.addr, len) == -1)
-			err(EX_OSERR, "mlock(%u)", len);
+			err(EX_OSERR, "mlock()");
 
 		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #		define CODE(x) case x: goto x
@@ -154,7 +154,7 @@ static void * engine_instance(void *arg)
 
 		RET:
 			if (munlock(d.addr, len) == -1)
-				err(EX_OSERR, "mlock(%u)", len);
+				err(EX_OSERR, "munlock()");
 			pos += (mlocksize / d.reclen) * instances;
 			continue;
 		BSWAP:
