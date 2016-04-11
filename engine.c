@@ -7,6 +7,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/mman.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <errno.h>
 
 #include "engine.h"
 
@@ -18,10 +21,21 @@ static const char *opobjs[] = {
 	NULL,
 };
 
+static long instances = 1;
 static long pagesize;
 static unsigned int mlocksize;
 
 void engine_init() {
+	errno = 0;
+	if (getenv("INSTANCES"))
+		instances = strtol(getenv("INSTANCES"), NULL, 10);
+	if (errno == ERANGE)
+		err(EX_DATAERR, "invalid INSTANCES");
+	if (instances == 0)
+		instances = sysconf(_SC_NPROCESSORS_ONLN);
+	if (instances == -1)
+		err(EX_OSERR, "sysconf(_SC_NPROCESSORS_ONLN)");
+
 	pagesize = sysconf(_SC_PAGESIZE);
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
@@ -37,6 +51,8 @@ void engine_init() {
 	mlocksize = ((unsigned int)l2_cache_size/2 < rlim.rlim_cur)
 			? (unsigned int)l2_cache_size/2
 			: rlim.rlim_cur;
+	mlocksize = mlocksize / instances;
+	mlocksize = mlocksize - (mlocksize % pagesize);
 	if (mlocksize < pagesize)
 		errx(EX_SOFTWARE, "mlocksize is less than pagesize");
 
@@ -104,6 +120,51 @@ void engine_init() {
 	CODE(BSWAP); \
 }
 
+uint64_t pos = 0;
+pthread_mutex_t pos_lock;
+
+struct engine_instance_info {
+	struct program	*program;
+	struct data	*data;
+	pthread_t	thread;
+};
+
+static void * engine_instance(void *arg)
+{
+	struct engine_instance_info *eii = arg;
+
+	while (pos < eii->data[0].numrec) {
+		struct data d = {
+			.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen],
+			.numrec		= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
+						? mlocksize / eii->data[0].reclen
+						: eii->data[0].numrec - pos,
+			.reclen		= eii->data[0].reclen,
+			.endian		= eii->data[0].endian,
+		};
+
+		if (mlock(d.addr, d.numrec * d.reclen) == -1)
+			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
+
+		struct insn *ip = eii->program->insns;
+
+		NEXT;
+
+		RET:
+			if (munlock(d.addr, d.numrec * d.reclen) == -1)
+				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
+			pthread_mutex_lock(&pos_lock);
+			pos += mlocksize / d.reclen;
+			pthread_mutex_unlock(&pos_lock);
+			continue;
+		BSWAP:
+			bswap(&d);
+			NEXT;
+	}
+
+	return NULL;
+}
+
 void engine_run(struct program *program, struct data *data)
 {
 	if (program->insns[program->len - 1].code != RET) {
@@ -118,29 +179,29 @@ void engine_run(struct program *program, struct data *data)
 		}
 	}
 
-	for (uint64_t i = 0; i < data[0].numrec; i += mlocksize / data[0].reclen) {
-		struct data d = {
-			.addr	= &((uint8_t *)data[0].addr)[i * data[0].reclen],
-			.reclen	= data[0].reclen,
-			.endian = data[0].endian,
-		};
-		d.numrec = ((data[0].numrec - i) > mlocksize / data[0].reclen)
-				? mlocksize / data[0].reclen
-				: data[0].numrec - i;
+	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 
-		if (mlock(d.addr, d.numrec * d.reclen) == -1)
-			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
+	pthread_mutex_init(&pos_lock, NULL);
 
-		struct insn *ip = program->insns;
+	for (int i = 0; i < instances; i++) {
+		eii[i].program	= program;
+		eii[i].data	= data;
 
-		NEXT;
-
-		RET:
-			if (munlock(d.addr, d.numrec * d.reclen))
-				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
-			continue;
-		BSWAP:
-			bswap(&d);
-			NEXT;
+		if (instances == 1) {
+			engine_instance(&eii[i]);
+		} else {
+			if (pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]))
+				err(EX_OSERR, "pthread_create()");
+		}
 	}
+
+	if (instances > 1) {
+		for (int i = 0; i < instances; i++) {
+			errno =  pthread_join(eii[i].thread, NULL);
+			if (errno)
+				err(EX_OSERR, "pthread_join()");
+		}
+	}
+
+	free(eii);
 }
