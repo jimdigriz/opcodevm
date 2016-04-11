@@ -128,7 +128,7 @@ static void * engine_instance(void *arg)
 		.endian		= eii->data[0].endian,
 	};
 
-	uint64_t pos = eii->instance;
+	uint64_t pos = (mlocksize / d.reclen) * eii->instance;
 	while (pos < eii->data[0].numrec) {
 		d.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen];
 		d.numrec	= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
