@@ -1,16 +1,13 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef enum {
-	LITTLE,
-	BIG,
-} endian;
+#include <store.h>
 
 struct data {
 	void		*addr;
 	uint64_t	numrec;
-	unsigned int	reclen;
-	endian		endian;
+	type		type;
+	uint8_t		reclen;
 	char		*path;
 	int		fd;
 };
@@ -24,6 +21,7 @@ typedef enum {
 
 struct insn {
 	code		code;
+	int64_t		k;
 };
 
 /* programs must terminate with a RET (matches also a zero'd struct) */

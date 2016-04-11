@@ -140,7 +140,7 @@ void engine_run(struct program *program, struct data *data)
 				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
 			continue;
 		BSWAP:
-			bswap(&d);
+			bswap(&data, ip->k);
 			NEXT;
 	}
 }

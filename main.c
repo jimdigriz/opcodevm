@@ -15,7 +15,7 @@
 #define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 
 static struct insn insns[] = {
-	{ .code	= BSWAP	},
+	{ .code	= BSWAP, .k = 0	},
 	{0},
 };
 
@@ -24,38 +24,44 @@ static struct program program = {
 	.len	= ARRAY_SIZE(insns),
 };
 
-static struct data data[] = {
-	{ .path	= "datafile" },
-	{0},
-};
-
 int main(int argc, char **argv)
 {
 	engine_init();
 
-	if (getenv("DATAFILE"))
-		data[0].path = getenv("DATAFILE");
+	struct data *data = calloc(argc + 1, sizeof(struct data));
 
-	data[0].fd = open(data[0].path, O_RDONLY);
-	if (data[0].fd == -1)
-		err(EX_NOINPUT, "open('%s')", data[0].path);
+	if (argc == 0)
+		errx(EX_USAGE, "need to supply data files as arguments");
 
-	struct stat stat;
-	if (fstat(data[0].fd, &stat) == -1)
-		err(EX_NOINPUT, "fstat()");
+	for (int i = 0; i < argc; i++) {
+		data[i].fd = open(argv[i], O_RDONLY);
+		if (data[i].fd == -1)
+			err(EX_NOINPUT, "open('%s')", argv[i]);
+
+		struct stat stat;
+		if (fstat(data[i].fd, &stat) == -1)
+			err(EX_NOINPUT, "fstat()");
+
+		data[i].addr = mmap(NULL, 4096, PROT_READ, MAP_SHARED, data[i].fd, 0);
+		if (data[i].addr == MAP_FAILED)
+			err(EX_OSERR, "mmap(hdr)");
+
+		if (munmap(data[i].addr, 4096))
+			err(EX_OSERR, "munmap(hdr)");
+
+		data[i].addr = mmap(NULL, data[i].numrec * data[i].reclen, PROT_READ|PROT_WRITE, MAP_PRIVATE, data[i].fd, 4096);
+		if (data[i].addr == MAP_FAILED)
+			err(EX_OSERR, "mmap(dat)");
+
+		errno = posix_madvise(data[i].addr, data[i].numrec * data[i].reclen, MADV_SEQUENTIAL|MADV_WILLNEED);
+		if (errno)
+			warn("posix_madvise()");
+	}
 
 	/* TODO: move into header */
 	data[0].reclen = sizeof(float);
 	data[0].numrec = stat.st_size / data[0].reclen;
 	data[0].endian = BIG;
-
-	data[0].addr = mmap(NULL, data[0].numrec * data[0].reclen, PROT_READ|PROT_WRITE, MAP_PRIVATE, data[0].fd, 0);
-	if (data[0].addr == MAP_FAILED)
-		err(EX_OSERR, "mmap()");
-
-	errno = posix_madvise(data[0].addr, data[0].numrec * data[0].reclen, MADV_SEQUENTIAL|MADV_WILLNEED);
-	if (errno)
-		warn("posix_madvise()");
 
 	engine_run(&program, data);
 

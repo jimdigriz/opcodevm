@@ -49,7 +49,7 @@ The following environment variables are available:
 
 # Usage
 
-    time env NODISP=1 NOCL=1 ./opcodevm
+    time env NODISP=1 NOCL=1 ./opcodevm <file> [<file> ...]
 
 The following environment variables are available:
 
@@ -60,6 +60,8 @@ The following environment variables are available:
 By increasing `RLIMIT_MEMLOCK` you increase the work done per cycle which can make particular engines (such as the OpenCL one) run faster:
 
     sudo bash -c "ulimit -l $(($(getconf LEVEL2_CACHE_SIZE)/1024/2)) && time env NODISP=1 NOCL=1 ./opcodevm"
+
+**N.B.** the effective `RLIMIT_MEMLOCK` is divided by the number of data files you pass in
 
 # Related Links
 
