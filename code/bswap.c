@@ -25,7 +25,7 @@ void bswap(struct data *data, ...)
 				ops.u##x[i++](&offset, &data[n]);	\
 			break;
 
-	switch (data->reclen) {
+	switch (data[n]->reclen) {
 		C(16);
 		C(32);
 		C(64);
