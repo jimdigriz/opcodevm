@@ -181,7 +181,7 @@ void engine_run(struct program *program, struct data *data)
 
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 
-	for (int i = 0; i < instances; i++) {
+	for (unsigned int i = 0; i < instances; i++) {
 		eii[i].program	= program;
 		eii[i].data	= data;
 		eii[i].instance	= i;
