@@ -135,8 +135,10 @@ static void * engine_instance(void *arg)
 					? mlocksize / eii->data[0].reclen
 					: eii->data[0].numrec - pos;
 
-		if (mlock(d.addr, d.numrec * d.reclen) == -1)
-			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
+		const unsigned int len = d.numrec * d.reclen;
+
+		if (mlock(d.addr, len) == -1)
+			err(EX_OSERR, "mlock(%u)", len);
 
 		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #		define CODE(x) case x: goto x
@@ -151,8 +153,8 @@ static void * engine_instance(void *arg)
 		NEXT;
 
 		RET:
-			if (munlock(d.addr, d.numrec * d.reclen) == -1)
-				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
+			if (munlock(d.addr, len) == -1)
+				err(EX_OSERR, "mlock(%u)", len);
 			pos += (mlocksize / d.reclen) * instances;
 			continue;
 		BSWAP:
