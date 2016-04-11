@@ -60,7 +60,7 @@ The following environment variables are available:
  * **`NODISP`:** do not display the results
  * **`NOARCH`:** skip arch specific jets
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
- * **`INSTANCES`:** engine parallelism
+ * **`INSTANCES` (default: 1):** engine parallelism, pointless to set above `getconf _NPROCESSORS_ONLN`
 
 By increasing `RLIMIT_MEMLOCK` (defaults to 64kB) you increase the work done per cycle which can make particular engines (such as the OpenCL one) run faster:
 
