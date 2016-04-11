@@ -112,19 +112,11 @@ void engine_init() {
 	}
 }
 
-/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
-#define CODE(x) case x: goto x
-#define NEXT switch ((*ip++).code) \
-{ \
-	CODE(RET); \
-	CODE(BSWAP); \
-}
-
 struct engine_instance_info {
 	struct program	*program;
 	struct data	*data;
 	pthread_t	thread;
-	unsigned int	num;
+	unsigned int	instance;
 };
 
 static void * engine_instance(void *arg)
@@ -136,7 +128,7 @@ static void * engine_instance(void *arg)
 		.endian		= eii->data[0].endian,
 	};
 
-	uint64_t pos = eii->num;
+	uint64_t pos = eii->instance;
 	while (pos < eii->data[0].numrec) {
 		d.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen];
 		d.numrec	= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
@@ -145,6 +137,14 @@ static void * engine_instance(void *arg)
 
 		if (mlock(d.addr, d.numrec * d.reclen) == -1)
 			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
+
+		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
+#		define CODE(x) case x: goto x
+#		define NEXT switch ((*ip++).code) \
+		{ \
+			CODE(RET); \
+			CODE(BSWAP); \
+		}
 
 		struct insn *ip = eii->program->insns;
 
@@ -182,7 +182,7 @@ void engine_run(struct program *program, struct data *data)
 	for (int i = 0; i < instances; i++) {
 		eii[i].program	= program;
 		eii[i].data	= data;
-		eii[i].num	= i;
+		eii[i].instance	= i;
 
 		if (instances == 1) {
 			engine_instance(&eii[i]);
