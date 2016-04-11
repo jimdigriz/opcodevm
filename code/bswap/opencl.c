@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <err.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -8,6 +7,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -29,7 +29,7 @@ cl_command_queue command_queue;
 				if (cl_ret != CL_SUCCESS) \
 					errx(EX_SOFTWARE, "clSetKernelArg("#x", "#y", "#z") = %d", cl_ret)
 
-static void bswap32_opencl(uint64_t *offset, struct data *data, ...) {
+static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
 	const size_t global_work_size[] = { data->numrec / 16 };
 	cl_mem memobj;
 	cl_int cl_ret;
@@ -66,34 +66,30 @@ static void bswap32_opencl(uint64_t *offset, struct data *data, ...) {
 	*offset += global_work_size[0] * 16;
 }
 
-#define F(x) .u##x = { bswap##x##_opencl, NULL }
-static struct op op = {
-	.code	= BSWAP,
-	F(32),
-};
-
-struct op* init()
+static void __attribute__ ((constructor)) init()
 {
 	cl_platform_id platforms;
 	cl_device_id devices;
 	cl_uint num_platforms, num_devices;
 	cl_int cl_ret;
 
+	assert(opcode[BSWAP].reg != NULL);
+
 	if (getenv("NOCL"))
-		return NULL;
+		return;
 
 	cl_ret = clGetPlatformIDs(1, &platforms, &num_platforms);
 	CL_CHKERR(clGetPlatformIDs);
 	if (!num_platforms) {
 		warnx("no OpenCL platforms found");
-		return NULL;
+		return;
 	}
 
 	cl_ret = clGetDeviceIDs(platforms, CL_DEVICE_TYPE_DEFAULT, 1, &devices, &num_devices);
 	CL_CHKERR(clGetDeviceIDs);
 	if (!num_devices) {
 		warnx("no OpenCL devices found");
-		return NULL;
+		return;
 	}
 
 	context = clCreateContext(NULL, 1, &devices, NULL, NULL, &cl_ret);
@@ -120,11 +116,12 @@ struct op* init()
 	cl_ret = clBuildProgram(program, 1, &devices, "", NULL, NULL);
 	CL_CHKERR(clBuildProgram);
 
-	kernel32 = clCreateKernel(program, "bswap32", &cl_ret);
+	kernel32 = clCreateKernel(program, "bswap_32", &cl_ret);
 	CL_CHKERR(clCreateKernel);
 
 	command_queue = clCreateCommandQueue(context, devices, 0, &cl_ret);
 	CL_CHKERR(clCreateCommandQueue);
 
-	return &op;
+#	define REG(x)	opcode[BSWAP].reg(bswap_##x##_opencl, x/8);
+	REG(32);
 }

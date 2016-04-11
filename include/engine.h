@@ -13,11 +13,10 @@ struct data {
 };
 
 typedef enum {
-	RET,
 	BSWAP,
+	CODE_MAX,
+	RET,		/* after CODE_MAX as this has no ops */
 } code;
-
-#define NCODES 1
 
 struct insn {
 	code		code;
@@ -31,22 +30,11 @@ struct program {
 	size_t		rwords;
 };
 
-/*
- * the op struct is walked though, where they are populated via:
- * slot 0: 'accelerated' implementation, otherwise backfilled from slot 1
- * slot 1: always C implementation
- * slot 2: always NULL
- */
-#define OP(x) void (*x[3])(uint64_t *, struct data *, ...)
-struct op {
-	OP(u16);
-	OP(u32);
-	OP(u64);
-	code		code;
+struct opcode {
+	void (*call)(uint64_t *, struct data *, ...);
+	void (*reg)(void (*f)(uint64_t *, struct data *, ...), ...);
 };
+extern struct opcode opcode[];
 
 void engine_init();
 void engine_run(struct program *, int ndata, struct data *);
-
-void bswap(struct data *, ...);
-struct op* bswap_ops();

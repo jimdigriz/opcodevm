@@ -9,14 +9,20 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "engine.h"
 
-/* order is important, 'fastest' needs to be at the end */
-static const char *opobjs[] = {
-	"code/bswap/c.so",
-	"code/bswap/x86_64.so",
+struct opcode opcode[CODE_MAX];
+
+static const char *libs[] = {
+	/* first load the code points (order not important) */
+	"code/bswap.so",
+
+	/* now the ops (order is important, descending by 'speed') */
 	"code/bswap/opencl.so",
+	"code/bswap/x86_64.so",
+	"code/bswap/c.so",
 	NULL,
 };
 
@@ -52,59 +58,12 @@ void engine_init() {
 	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
 		err(EX_OSERR, "getrlimit(RLIMIT_MEMLOCK)");
 
-	struct op *ops[NCODES];
-
-	ops[BSWAP - 1] = bswap_ops();
-
-	for (const char **l = opobjs; *l; l++) {
+	for (const char **l = libs; *l; l++) {
 		void *handle = dlopen(*l, RTLD_NOW|RTLD_LOCAL);
 		if (!handle) {
 			warnx("dlopen(%s): %s\n", *l, dlerror());
 			abort();
 		}
-
-		dlerror();
-
-		struct op *(*init)() = (struct op *(*)())(intptr_t)dlsym(handle, "init");
-		char *error = dlerror();
-		if (error) {
-			warnx("dlsym(%s): %s\n", *l, error);
-			abort();
-		}
-
-		struct op *op = init();
-		if (!op) {
-			dlclose(handle);
-			continue;
-		}
-
-#		define POPULATE(x)	if (op->u##x[i]) \
-						ops[op->code - 1]->u##x[i] = op->u##x[i]
-		/* not 3 as that is to remain a row of 0's */
-		for (unsigned int i = 0; i < 2; i++) {
-			POPULATE(16);
-			POPULATE(32);
-			POPULATE(64);
-		}
-	}
-
-#	define BACKFILL(x)	if (!ops[i]->u##x[0] && ops[i]->u##x[1]) \
-					ops[i]->u##x[0] = ops[i]->u##x[1]
-	for (unsigned int i = 0; i < NCODES; i++) {
-		BACKFILL(16);
-		BACKFILL(32);
-		BACKFILL(64);
-
-#ifndef NDEBUG
-#	define CTERM(x)	if (ops[i]->u##x[2]) {							\
-				warnx("ops[%d]->x table does not have terminating NULL", i);	\
-				abort();							\
-			}
-
-		CTERM(16);
-		CTERM(32);
-		CTERM(64);
-#endif
 	}
 }
 
@@ -124,14 +83,14 @@ static void * engine_instance(void *arg)
 	if (!d)
 		errx(EX_OSERR, "calloc(d)");
 
-	uint64_t numrec = UINT64_MAX;
+	uint64_t minrec = UINT64_MAX;
 	uint8_t reclen = 0;
 	for (unsigned int i = 0; i < eii->ndata; i++) {
 		d[i].type	= eii->data[i].type;
 		d[i].reclen	= eii->data[i].reclen;
 
-		if (eii->data[i].numrec < numrec)
-			numrec = eii->data[i].numrec;
+		if (eii->data[i].numrec < minrec)
+			minrec = eii->data[i].numrec;
 
 		reclen += eii->data[i].reclen;
 	}
@@ -143,29 +102,40 @@ static void * engine_instance(void *arg)
 	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
 	const uint64_t stride = (l2_cache_size / reclen / 2)
 					- ((l2_cache_size / reclen / 2) % pagesize);
-	for (uint64_t pos = eii->instance * stride; pos < numrec; pos += stride) {
+
+	for (uint64_t pos = eii->instance * stride; pos < minrec; pos += stride) {
+		const uint64_t numrec = ((minrec - pos) > stride) ? stride : minrec - pos;
+
 		for (unsigned int i = 0; i < eii->ndata; i++) {
 			d[i].addr	= &((uint8_t *)eii->data[i].addr)[pos * eii->data[i].reclen];
-			d[i].numrec	= ((numrec - pos) > stride) ? stride : numrec - pos;
+			d[i].numrec	= numrec;
 		}
 
 		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #		define CODE(x) case x: goto x
 #		define NEXT switch ((*ip++).code) \
 		{ \
-			CODE(RET); \
 			CODE(BSWAP); \
+			CODE(CODE_MAX); \
+			CODE(RET); \
 		}
+#		define CALL(x, ...)	offset = 0;					\
+					opcode[x].call(&offset, d, __VA_ARGS__);	\
+					assert(offset == numrec);
+
+		uint64_t offset;
 
 		struct insn *ip = eii->program->insns;
 
 		NEXT;
 
+		BSWAP:
+			CALL(BSWAP, ip->k);
+			NEXT;
 		RET:
 			continue;
-		BSWAP:
-			bswap(d, ip->k);
-			NEXT;
+		CODE_MAX:
+			errx(EX_SOFTWARE, "CODE_MAX");
 	}
 
 	free(R);

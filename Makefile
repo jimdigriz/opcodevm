@@ -1,13 +1,14 @@
 SRCS		:= $(wildcard *.c)
+OBJS		:= $(SRCS:%.c=%.o)
+
 CODESRCS	:= $(wildcard code/*.c)
-CODEOBJS	:= $(CODESRCS:%.c=%.o)
-OBJS		:= $(SRCS:%.c=%.o) $(CODEOBJS)
+CODEOBJS	:= $(CODESRCS:%.c=%.so)
 
 OPSRCS		:= $(foreach s,$(basename $(CODESRCS)),$(wildcard $(s)/*.c))
 OPOBJS		:= $(OPSRCS:%.c=%.so)
 
 TARGET		:= opcodevm
-TARGETS		:= $(TARGET) $(OPOBJS)
+TARGETS		:= $(TARGET) $(CODEOBJS) $(OPOBJS)
 
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
@@ -52,7 +53,7 @@ endif
 	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.so: %.c Makefile
-	$(CROSS_COMPILE)$(CC) $(LDFLAGS_SO) $(CPPFLAGS) $(CFLAGS) -shared -nostartfiles -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS_SO) $(CPPFLAGS) $(CFLAGS) -shared -o $@ $<
 ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif

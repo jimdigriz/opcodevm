@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <byteswap.h>
+#include <assert.h>
 
 #include "engine.h"
 
@@ -24,7 +25,7 @@
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	static void bswap##x##_x86_64(uint64_t *offset, struct data *data, ...)	\
+#define FUNC(x)	static void bswap_##x##_x86_64(uint64_t *offset, struct data *data, ...)	\
 		{									\
 			uint##x##_t *d = data->addr;					\
 											\
@@ -38,18 +39,12 @@ FUNC(16)
 FUNC(32)
 FUNC(64)
 
-#define F(x) .u##x = { bswap##x##_x86_64, NULL }
-static struct op op = {
-	.code	= BSWAP,
-	F(16),
-	F(32),
-	F(64),
-};
-
-struct op* init()
+static void __attribute__ ((constructor)) init()
 {
+	assert(opcode[BSWAP].reg != NULL);
+
 	if (getenv("NOARCH"))
-		return NULL;
+		return;
 
 #if defined(__AVX__)
 	mask16 = _mm256_set_epi8(30, 31, 28, 29, 26, 27, 24, 25, 22, 23, 20, 21, 18, 19, 16, 17, 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
@@ -60,8 +55,11 @@ struct op* init()
 	mask32 = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
 	mask64 = _mm_set_epi8(8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
 #else
-	return NULL;
+	return;
 #endif
 
-	return &op;
+#	define REG(x)	opcode[BSWAP].reg(bswap_##x##_x86_64, x/8);
+	REG(16);
+	REG(32);
+	REG(64);
 }

@@ -1,14 +1,21 @@
 #include <stdint.h>
-#include <assert.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <sysexits.h>
+#include <err.h>
+#include <string.h>
+#include <assert.h>
 
 #include "engine.h"
 
-static struct op ops = {
-	.code	= BSWAP,
-};
 
-void bswap(struct data *data, ...)
+#define	RECLEN2POS(x)	((int)(x/2-1))
+#define MAX_SLOTS	3
+
+/* +1 as we need a NULL terminator on the end of the list */
+void (*op[RECLEN2POS(16)][MAX_SLOTS + 1])(uint64_t *, struct data *, ...);
+
+static void call(uint64_t *offset, struct data *data, ...)
 {
 	va_list ap;
 	va_start(ap, data);
@@ -17,24 +24,36 @@ void bswap(struct data *data, ...)
 
 	va_end(ap);
 
-	uint64_t offset = 0;
+	assert(RECLEN2POS(data[n].reclen) > -1 && RECLEN2POS(data[n].reclen) < RECLEN2POS(16));
+
 	int i = 0;
-
-#	define C(x) 	case (x/8):	 				\
-			while (offset < data->numrec && ops.u##x[i])	\
-				ops.u##x[i++](&offset, &data[n]);	\
-			break;
-
-	switch (data[n]->reclen) {
-		C(16);
-		C(32);
-		C(64);
-	}
-
-	assert(offset == data->numrec);
+	while (*offset < data[n].numrec && op[RECLEN2POS(data[n].reclen)][i])
+		op[RECLEN2POS(data[n].reclen)][i++](offset, &data[n]);
 }
 
-struct op* bswap_ops()
+static void reg(void (*f)(uint64_t *, struct data *, ...), ...)
 {
-	return &ops;
+	va_list ap;
+	va_start(ap, f);
+
+	unsigned int reclen = va_arg(ap, unsigned int);
+	assert(RECLEN2POS(reclen) > -1 && RECLEN2POS(reclen) < RECLEN2POS(16));
+
+	va_end(ap);
+
+	/* +1 is catch by the assert later */
+	for (unsigned int i = 0; i < MAX_SLOTS + 1; i++) {
+		if (!op[RECLEN2POS(reclen)][i]) {
+			op[RECLEN2POS(reclen)][i] = f;
+			break;
+		}
+	}
+
+	assert(op[RECLEN2POS(reclen)][MAX_SLOTS] == NULL);
+}
+
+static void __attribute__ ((constructor)) init()
+{
+	opcode[BSWAP].call	= call;
+	opcode[BSWAP].reg	= reg;
 }

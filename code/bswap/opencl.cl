@@ -14,7 +14,7 @@
       | (((x) & 0x000000000000ff00ull) << 40)  \
       | (((x) & 0x00000000000000ffull) << 56)) \
 
-#define FUNC(x, y)	__kernel void bswap##x(__global y##16 *data)		\
+#define FUNC(x, y)	__kernel void bswap_##x(__global y##16 *data)		\
 			{							\
 				__const ulong base = get_global_id(0);		\
 										\
