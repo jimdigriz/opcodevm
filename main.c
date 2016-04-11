@@ -17,14 +17,14 @@
 #define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 
 static struct insn insns[] = {
-	{ .code	= BSWAP, .k = 0	},
-	{ .code = RET },
+	{ .code	= OC_MISC|OC_BSWP, .k = 0	},
+	{ .code = OC_RET			},
 };
 
 static struct program program = {
 	.insns	= insns,
 	.len	= ARRAY_SIZE(insns),
-	.rwords	= 8,
+	.mwords	= 8,
 };
 
 int main(int argc, char **argv)

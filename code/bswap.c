@@ -8,7 +8,6 @@
 
 #include "engine.h"
 
-
 #define	RECLEN2POS(x)	((int)(x/2-1))
 #define MAX_SLOTS	3
 
@@ -54,6 +53,6 @@ static void reg(void (*f)(uint64_t *, struct data *, ...), ...)
 
 static void __attribute__ ((constructor)) init()
 {
-	opcode[BSWAP].call	= call;
-	opcode[BSWAP].reg	= reg;
+	opcode[OPCODE(MISC, BSWP)].call	= call;
+	opcode[OPCODE(MISC, BSWP)].reg	= reg;
 }

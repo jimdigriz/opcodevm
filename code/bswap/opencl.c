@@ -73,7 +73,7 @@ static void __attribute__ ((constructor)) init()
 	cl_uint num_platforms, num_devices;
 	cl_int cl_ret;
 
-	assert(opcode[BSWAP].reg != NULL);
+	assert(opcode[OPCODE(MISC, BSWP)].reg != NULL);
 
 	if (getenv("NOCL"))
 		return;
@@ -122,6 +122,6 @@ static void __attribute__ ((constructor)) init()
 	command_queue = clCreateCommandQueue(context, devices, 0, &cl_ret);
 	CL_CHKERR(clCreateCommandQueue);
 
-#	define REG(x)	opcode[BSWAP].reg(bswap_##x##_opencl, x/8);
+#	define REG(x)	opcode[OPCODE(MISC, BSWP)].reg(bswap_##x##_opencl, x/8);
 	REG(32);
 }

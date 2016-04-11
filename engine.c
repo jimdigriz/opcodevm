@@ -13,7 +13,7 @@
 
 #include "engine.h"
 
-struct opcode opcode[CODE_MAX];
+struct opcode opcode[256];
 
 static const char *libs[] = {
 	/* first load the code points (order not important) */
@@ -95,9 +95,9 @@ static void * engine_instance(void *arg)
 		reclen += eii->data[i].reclen;
 	}
 
-	uint64_t *R = calloc(eii->program->rwords, sizeof(uint64_t));
-	if (!R)
-		errx(EX_OSERR, "calloc(R)");
+	uint64_t *M = calloc(eii->program->mwords, sizeof(uint64_t));
+	if (!M)
+		errx(EX_OSERR, "calloc(M)");
 
 	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
 	const uint64_t stride = (l2_cache_size / reclen / 2)
@@ -112,12 +112,13 @@ static void * engine_instance(void *arg)
 		}
 
 		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
-#		define CODE(x) case x: goto x
-#		define NEXT switch ((*ip++).code) \
-		{ \
-			CODE(BSWAP); \
-			CODE(CODE_MAX); \
-			CODE(RET); \
+#		define LABL(x, y) x##__##y
+#		define CASE(x, y) case OPCODE(x,y): goto LABL(x,y)
+#		define NEXT switch ((*ip++).code)	\
+		{					\
+			CASE(MISC, BSWP);		\
+			case OC_RET:	goto RET;	\
+			default:	goto SIGILL;	\
 		}
 #		define CALL(x, ...)	offset = 0;					\
 					opcode[x].call(&offset, d, __VA_ARGS__);	\
@@ -129,16 +130,16 @@ static void * engine_instance(void *arg)
 
 		NEXT;
 
-		BSWAP:
-			CALL(BSWAP, ip->k);
+		LABL(MISC, BSWP):
+			CALL(OPCODE(MISC, BSWP), ip->k);
 			NEXT;
 		RET:
 			continue;
-		CODE_MAX:
-			errx(EX_SOFTWARE, "CODE_MAX");
+		SIGILL:
+			errx(EX_USAGE, "SIGILL %d (class=%d)", ip->code, OC_CLASS(ip->code));
 	}
 
-	free(R);
+	free(M);
 
 	free(d);
 
@@ -147,8 +148,8 @@ static void * engine_instance(void *arg)
 
 void engine_run(struct program *program, int ndata, struct data *data)
 {
-	if (program->insns[program->len - 1].code != RET)
-		errx(EX_USAGE, "program needs to end with RET");
+	if (program->insns[program->len - 1].code != OC_RET)
+		errx(EX_USAGE, "program needs to end with OC_RET");
 
 	if (ndata == 0)
 		errx(EX_USAGE, "ndata needs to be greater than 0");
@@ -157,8 +158,8 @@ void engine_run(struct program *program, int ndata, struct data *data)
 		if ((uintptr_t)data[i].addr % pagesize)
 			errx(EX_SOFTWARE, "data[%d] is not page aligned", i);
 
-	if (program->rwords == 0)
-		errx(EX_USAGE, "rwords needs to be greater than 0");
+	if (program->mwords == 0)
+		errx(EX_USAGE, "mwords needs to be greater than 0");
 
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 
