@@ -9,6 +9,8 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <byteswap.h>
+#include <unistd.h>
 
 #include "engine.h"
 
@@ -16,54 +18,95 @@
 
 static struct insn insns[] = {
 	{ .code	= BSWAP, .k = 0	},
-	{0},
+	{ .code = RET },
 };
 
 static struct program program = {
 	.insns	= insns,
 	.len	= ARRAY_SIZE(insns),
+	.rwords	= 8,
 };
 
 int main(int argc, char **argv)
 {
-	engine_init();
+	struct data *data = calloc(argc, sizeof(struct data));
 
-	struct data *data = calloc(argc + 1, sizeof(struct data));
-
-	if (argc == 0)
+	if (argc == 1)
 		errx(EX_USAGE, "need to supply data files as arguments");
 
-	for (int i = 0; i < argc; i++) {
-		data[i].fd = open(argv[i], O_RDONLY);
-		if (data[i].fd == -1)
+	engine_init();
+
+	uint64_t numrec = UINT64_MAX;
+	for (int i = 1; i < argc; i++) {
+		data[i - 1].fd = open(argv[i], O_RDONLY);
+		if (data[i - 1].fd == -1)
 			err(EX_NOINPUT, "open('%s')", argv[i]);
 
 		struct stat stat;
-		if (fstat(data[i].fd, &stat) == -1)
-			err(EX_NOINPUT, "fstat()");
+		if (fstat(data[i - 1].fd, &stat) == -1)
+			err(EX_NOINPUT, "fstat('%s')", argv[i]);
 
-		data[i].addr = mmap(NULL, 4096, PROT_READ, MAP_SHARED, data[i].fd, 0);
-		if (data[i].addr == MAP_FAILED)
-			err(EX_OSERR, "mmap(hdr)");
+		if ((size_t)stat.st_size < sizeof(struct store))
+			err(EX_DATAERR, "file '%s' too short to have header", argv[i]);
 
-		if (munmap(data[i].addr, 4096))
+		data[i - 1].addr = mmap(NULL, sizeof(struct store), PROT_READ, MAP_SHARED, data[i - 1].fd, 0);
+		if (data[i - 1].addr == MAP_FAILED)
+			err(EX_OSERR, "mmap(hdr, '%s')", argv[i]);
+
+		struct store *store = data[i - 1].addr;
+
+		if (store->magic != MAGIC && bswap_32(store->magic) != MAGIC)
+			errx(EX_DATAERR, "incorrrect magic %08x in '%s'", store->magic, argv[i]);
+
+		if (store->version != 0)
+			errx(EX_DATAERR, "unknown version %08x in '%s'", store->version, argv[i]);
+
+		switch (store->v0.type) {
+		case INT:
+		case UINT:
+		case FLOAT:
+		case CHAR:
+			break;
+		default:
+			errx(EX_DATAERR, "unknown type %d in '%s'", store->v0.type, argv[i]);
+		}
+
+		switch (store->v0.pow2) {
+		case B16:
+		case B32:
+		case B64:
+		case B128:
+			break;
+		default:
+			errx(EX_DATAERR, "unknown pow2 %d in '%s'", store->v0.pow2, argv[i]);
+		}
+
+		data[i - 1].reclen = POW2LEN(store->v0.pow2);
+		data[i - 1].numrec = (stat.st_size - sizeof(struct store)) / data[i - 1].reclen;
+
+		if (data[i - 1].numrec == 0)
+			errx(EX_DATAERR, "no data in '%s'", argv[i]);
+
+		if (data[i - 1].numrec < numrec)
+			numrec = data[i - 1].numrec;
+
+		if (munmap(data[i - 1].addr, sizeof(struct store)))
 			err(EX_OSERR, "munmap(hdr)");
+	}
 
-		data[i].addr = mmap(NULL, data[i].numrec * data[i].reclen, PROT_READ|PROT_WRITE, MAP_PRIVATE, data[i].fd, 4096);
+	for (int i = 0; i < argc - 1; i++) {
+		data[i].numrec = numrec;
+
+		data[i].addr = mmap(NULL, numrec * data[i].reclen, PROT_READ|PROT_WRITE, MAP_PRIVATE, data[i].fd, sizeof(struct store));
 		if (data[i].addr == MAP_FAILED)
 			err(EX_OSERR, "mmap(dat)");
 
-		errno = posix_madvise(data[i].addr, data[i].numrec * data[i].reclen, MADV_SEQUENTIAL|MADV_WILLNEED);
+		errno = posix_madvise(data[i].addr, numrec * data[i].reclen, MADV_SEQUENTIAL|MADV_WILLNEED);
 		if (errno)
 			warn("posix_madvise()");
 	}
 
-	/* TODO: move into header */
-	data[0].reclen = sizeof(float);
-	data[0].numrec = stat.st_size / data[0].reclen;
-	data[0].endian = BIG;
-
-	engine_run(&program, data);
+	engine_run(&program, argc - 1, data);
 
 	if (getenv("NODISP"))
 		return 0;
@@ -71,6 +114,13 @@ int main(int argc, char **argv)
 	float *d = data[0].addr;
 	for (uint64_t i = 0; i < data[0].numrec; i++)
 		printf("%f\n", d[i]);
+
+	for (int i = 0; i < argc - 1; i++) {
+		if (munmap(data[i].addr, numrec * data[i].reclen))
+			err(EX_OSERR, "munmap(dat)");
+
+		close(data[i].fd);
+	}
 
 	return 0;
 }

@@ -3,6 +3,8 @@
 
 opcodevm
 
+store
+
 gmon.out
 *.[do]
 *.so

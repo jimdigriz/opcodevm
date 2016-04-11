@@ -1,4 +1,4 @@
-#define MAGIC 0x561b13d6f3
+#define MAGIC 0x561b13d6
 
 typedef enum {
 	INT	= 0,
@@ -14,7 +14,7 @@ typedef enum {
 	B128	= 7,
 } pow2;
 
-#define POW2BYTES(x) ((1 << x)/8)
+#define POW2LEN(x) ((1 << x)/8)
 
 struct store {
 	uint32_t	magic;

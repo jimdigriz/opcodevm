@@ -6,7 +6,6 @@
 #include <dlfcn.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/mman.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -23,7 +22,7 @@ static const char *opobjs[] = {
 
 static long instances = 1;
 static long pagesize;
-static unsigned int mlocksize;
+static long l2_cache_size;
 
 void engine_init() {
 	errno = 0;
@@ -40,21 +39,13 @@ void engine_init() {
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
-	const long l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+	l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
 	if (l2_cache_size == -1)
 		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
 
 	struct rlimit rlim;
 	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
 		err(EX_OSERR, "getrlimit(RLIMIT_MEMLOCK)");
-
-	mlocksize = ((unsigned int)l2_cache_size/2 < rlim.rlim_cur)
-			? (unsigned int)l2_cache_size/2
-			: rlim.rlim_cur;
-	mlocksize = mlocksize / instances;
-	mlocksize = mlocksize - (mlocksize % pagesize);
-	if (mlocksize < pagesize)
-		errx(EX_SOFTWARE, "mlocksize is less than pagesize");
 
 	struct op *ops[NCODES];
 
@@ -115,6 +106,7 @@ void engine_init() {
 struct engine_instance_info {
 	struct program	*program;
 	struct data	*data;
+	unsigned int	ndata;
 	pthread_t	thread;
 	unsigned int	instance;
 };
@@ -123,22 +115,35 @@ static void * engine_instance(void *arg)
 {
 	struct engine_instance_info *eii = arg;
 
-	struct data d = {
-		.reclen		= eii->data[0].reclen,
-		.endian		= eii->data[0].endian,
-	};
+	struct data *d = calloc(eii->ndata, sizeof(struct data));
+	if (!d)
+		errx(EX_OSERR, "calloc(d)");
 
-	uint64_t pos = (mlocksize / d.reclen) * eii->instance;
-	while (pos < eii->data[0].numrec) {
-		d.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen];
-		d.numrec	= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
-					? mlocksize / eii->data[0].reclen
-					: eii->data[0].numrec - pos;
+	uint64_t numrec = UINT64_MAX;
+	uint8_t reclen = 0;
+	for (unsigned int i = 0; i < eii->ndata; i++) {
+		d[i].type	= eii->data[i].type;
+		d[i].reclen	= eii->data[i].reclen;
 
-		const unsigned int len = d.numrec * d.reclen;
+		if (eii->data[i].numrec < numrec)
+			numrec = eii->data[i].numrec;
 
-		if (mlock(d.addr, len) == -1)
-			err(EX_OSERR, "mlock()");
+		if (eii->data[i].reclen > reclen)
+			reclen = eii->data[i].reclen;
+	}
+
+	uint64_t *R = calloc(eii->program->rwords, sizeof(uint64_t));
+	if (!R)
+		errx(EX_OSERR, "calloc(R)");
+
+	/* we divide by two so not to saturate the cache */
+	const uint64_t stride = l2_cache_size / reclen / 2;
+
+	for (uint64_t pos = eii->instance * stride; pos < numrec; pos += stride) {
+		for (unsigned int i = 0; i < eii->ndata; i++) {
+			d[i].addr	= &((uint8_t *)eii->data[i].addr)[pos * eii->data[i].reclen];
+			d[i].numrec	= ((numrec - pos) > stride) ? stride : numrec - pos;
+		}
 
 		/* http://www.complang.tuwien.ac.at/forth/threading/ : repl-switch */
 #		define CODE(x) case x: goto x
@@ -153,36 +158,39 @@ static void * engine_instance(void *arg)
 		NEXT;
 
 		RET:
-			if (munlock(d.addr, len) == -1)
-				err(EX_OSERR, "munlock()");
-			pos += (mlocksize / d.reclen) * instances;
 			continue;
 		BSWAP:
-			bswap(&data, ip->k);
+			bswap(d, ip->k);
 			NEXT;
 	}
+
+	free(R);
+
+	free(d);
 
 	return NULL;
 }
 
-void engine_run(struct program *program, struct data *data)
+void engine_run(struct program *program, int ndata, struct data *data)
 {
-	if (program->insns[program->len - 1].code != RET) {
-		warnx("program needs to end with RET\n");
-		abort();
-	}
+	if (program->insns[program->len - 1].code != RET)
+		errx(EX_USAGE, "program needs to end with RET");
 
-	for (unsigned int i = 0; data[i].addr; i++) {
-		if ((uintptr_t)data[i].addr % pagesize) {
-			warnx("data[%d] is not page aligned\n", i);
-			abort();
-		}
-	}
+	if (ndata == 0)
+		errx(EX_USAGE, "ndata needs to be greater than 0");
+
+	for (int i = 0; i < ndata; i++)
+		if ((uintptr_t)data[i].addr % pagesize)
+			errx(EX_SOFTWARE, "data[%d] is not page aligned", i);
+
+	if (program->rwords == 0)
+		errx(EX_USAGE, "rwords needs to be greater than 0");
 
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 
 	for (unsigned int i = 0; i < instances; i++) {
 		eii[i].program	= program;
+		eii[i].ndata	= ndata;
 		eii[i].data	= data;
 		eii[i].instance	= i;
 

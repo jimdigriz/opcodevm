@@ -14,11 +14,10 @@ Can be applied to:
 
  * need a benchmarker, especially as the `dlopen()`/OpenCL hooks make everything slower; about 40ms (`time env NODISP=1 NOCL=1 strace -tt ./opcodevm 2>&1 | sed -n '1 p; /madvise/ p'`)
      * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
- * OpenCL works when running under pocl as I assume the `mmap()` just works, however for a GPU we probably need a 2MB work buffer or something and to cycle on it
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
- * implement scatter gatter vector support (needed for datagramed payloads)
+ * implement scatter gatter vector support (needed for datagram payloads)
  * input sources
      * embedded HTTP
      * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
@@ -62,13 +61,20 @@ The following environment variables are available:
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
  * **`INSTANCES` (default: 1):** engine parallelism, pointless to set above `getconf _NPROCESSORS_ONLN`
 
-By increasing `RLIMIT_MEMLOCK` (defaults to 64kB) you increase the work done per cycle which can make particular engines (such as the OpenCL one) run faster:
+# Sample Data
 
-    sudo bash -c "ulimit -l $(($(getconf LEVEL2_CACHE_SIZE)/1024/2)) && time env NODISP=1 NOCL=1 ./opcodevm"
+ * [HistData](http://www.histdata.com/download-free-forex-data/) ([format](http://www.histdata.com/f-a-q/data-files-detailed-specification/))
+ * [GAIN Capital](http://ratedata.gaincapital.com/)
+ * [Pepperstone](https://pepperstone.com/en/client-resources/historical-tick-data)
 
-**N.B.** the effective `RLIMIT_MEMLOCK` is divided by the number of data files you pass in as well `INSTANCES`
+## HistData Example
 
-# Related Links
+The following will output the files `store/{time,bid,ask}` suitable for passing into `opcodevm` as arguments:
+
+    mkdir -p store
+    env DUPE=100 ./utils/prepdata.pl DAT_ASCII_EURUSD_T_201603.csv
+
+# Reading Material
 
  * [element distinctness/uniqueness](http://en.wikipedia.org/wiki/Element_distinctness_problem)
  * [INT32-C. Ensure that operations on signed integers do not result in overflow](https://www.securecoding.cert.org/confluence/display/c/INT32-C.+Ensure+that+operations+on+signed+integers+do+not+result+in+overflow) - maybe look to OS X's [checkint(3)](https://developer.apple.com/library/mac/documentation/Darwin/Reference/Manpages/man3/checkint.3.html)
@@ -94,15 +100,3 @@ By increasing `RLIMIT_MEMLOCK` (defaults to 64kB) you increase the work done per
      * [HyperLogLog](http://research.neustar.biz/2012/10/25/sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
  * [The Virginian Database](https://github.com/bakks/virginian) - GPU bytecode database
      * [`src/vm/vm_gpu.cu`](https://github.com/bakks/virginian/blob/master/src/vm/vm_gpu.cu) is interesting
-
-# Sample Data
-
- * [HistData](http://www.histdata.com/download-free-forex-data/) ([format](http://www.histdata.com/f-a-q/data-files-detailed-specification/))
- * [GAIN Capital](http://ratedata.gaincapital.com/)
- * [Pepperstone](https://pepperstone.com/en/client-resources/historical-tick-data)
-
-## Example
-
-    cat DAT_ASCII_EURUSD_T_201603.csv | cut -d, -f2 | perl -ne 'print pack "f>", $_' > datafile
-    for I in $(seq 1 100); do cat datafile >> datafile2; done
-    mv datafile2 datafile

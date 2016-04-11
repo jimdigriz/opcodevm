@@ -13,7 +13,7 @@ struct data {
 };
 
 typedef enum {
-	RET	= 0,	/* RET must be zero */
+	RET,
 	BSWAP,
 } code;
 
@@ -28,6 +28,7 @@ struct insn {
 struct program {
 	struct insn	*insns;
 	size_t		len;
+	size_t		rwords;
 };
 
 /*
@@ -45,7 +46,7 @@ struct op {
 };
 
 void engine_init();
-void engine_run(struct program *, struct data *);
+void engine_run(struct program *, int ndata, struct data *);
 
 void bswap(struct data *, ...);
 struct op* bswap_ops();
