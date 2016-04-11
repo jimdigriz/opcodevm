@@ -120,28 +120,28 @@ void engine_init() {
 	CODE(BSWAP); \
 }
 
-uint64_t pos = 0;
-pthread_mutex_t pos_lock;
-
 struct engine_instance_info {
 	struct program	*program;
 	struct data	*data;
 	pthread_t	thread;
+	unsigned int	num;
 };
 
 static void * engine_instance(void *arg)
 {
 	struct engine_instance_info *eii = arg;
 
+	struct data d = {
+		.reclen		= eii->data[0].reclen,
+		.endian		= eii->data[0].endian,
+	};
+
+	uint64_t pos = eii->num;
 	while (pos < eii->data[0].numrec) {
-		struct data d = {
-			.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen],
-			.numrec		= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
-						? mlocksize / eii->data[0].reclen
-						: eii->data[0].numrec - pos,
-			.reclen		= eii->data[0].reclen,
-			.endian		= eii->data[0].endian,
-		};
+		d.addr		= &((uint8_t *)eii->data[0].addr)[pos * eii->data[0].reclen];
+		d.numrec	= ((eii->data[0].numrec - pos) > mlocksize / eii->data[0].reclen)
+					? mlocksize / eii->data[0].reclen
+					: eii->data[0].numrec - pos;
 
 		if (mlock(d.addr, d.numrec * d.reclen) == -1)
 			err(EX_OSERR, "mlock(%" PRIu64 ")", d.numrec * d.reclen);
@@ -153,9 +153,7 @@ static void * engine_instance(void *arg)
 		RET:
 			if (munlock(d.addr, d.numrec * d.reclen) == -1)
 				err(EX_OSERR, "munlock(%" PRIu64 ")", d.numrec * d.reclen);
-			pthread_mutex_lock(&pos_lock);
-			pos += mlocksize / d.reclen;
-			pthread_mutex_unlock(&pos_lock);
+			pos += (mlocksize / d.reclen) * instances;
 			continue;
 		BSWAP:
 			bswap(&d);
@@ -181,11 +179,10 @@ void engine_run(struct program *program, struct data *data)
 
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 
-	pthread_mutex_init(&pos_lock, NULL);
-
 	for (int i = 0; i < instances; i++) {
 		eii[i].program	= program;
 		eii[i].data	= data;
+		eii[i].num	= i;
 
 		if (instances == 1) {
 			engine_instance(&eii[i]);
