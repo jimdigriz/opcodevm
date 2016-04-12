@@ -92,7 +92,12 @@ The following will output the files `store/{time,bid,ask}` suitable for passing 
          * [`-freorder-blocks-and-partition`, `-fno-common`, `-fno-zero-initialized-in-bss`](http://blog.mozilla.org/tglek/2010/03/05/mirror-mirror-on-the-wall-why-is-my-binary-slow/)
      * [Profile Guided Optimisations (PGO) - using `-fprofile-generate` and `-fprofile-use`](http://blog.mozilla.org/tglek/2010/04/12/squeezing-every-last-bit-of-performance-out-of-the-linux-toolchain/)
      * [`__builtin_prefetch`](https://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/Other-Builtins.html#index-g_t_005f_005fbuiltin_005fprefetch-1861)
-     * [Auto-vectorization with gcc 4.7](http://locklessinc.com/articles/vectorize/)
+     * Auto Vectorization
+         * Both [GCC](https://gcc.gnu.org/onlinedocs/gcc/Vector-Extensions.html) and [LLVM](http://clang.llvm.org/docs/LanguageExtensions.html#vectors-and-extended-vectors) support similar vector instructions, better to just re-write the pure C stuff in this
+         * [The Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/) - for hand crafting
+         * [Auto-vectorization with gcc 4.7](http://locklessinc.com/articles/vectorize/)
+         * [Using the Vectorizer [in GCC]](https://gcc.gnu.org/projects/tree-ssa/vectorization.html#using)
+         * [Linaro: Using GCC Auto-Vectorizer](http://www.slideshare.net/linaroorg/using-gcc-autovectorizer)
  * investigate [Blosc](http://www.blosc.org/) and its [c-blosc](https://github.com/Blosc/c-blosc) library
  * support an approximation 'turbo' [Zipfian](http://en.wikipedia.org/wiki/Zipf's_law) mode and use [sketches](http://en.wikipedia.org/wiki/Sketch_(mathematics)):
      * [Count-Min](https://sites.google.com/site/countminsketch/)
