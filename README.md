@@ -24,10 +24,14 @@ Can be applied to:
      * `NFQUEUE` over `mmap()`
  * think about a slower low latency option suitable for realtime streaming data (NAPI-esque)
  * actual client/server, rather than hard coded files and programs
- * add a `CONCURRENCY` environment variable to have multiple threads per engine instance, useful for when a CPU core supports [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading).  As an instruction is working on the dataset, the next instruction can be processed trailing the leading instruction by a L1 cache line size
+ * add a `PIPELINE` environment variable to add [instruction pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining) to be used where there is [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading) support
+     * as an instruction is working through the dataset, the next instruction is being simulateously processed
+     * I suspect trailing the leading instruction by a L1 cache line size will be needed, plus to keep locality between those threads
+     * insert a leading instruction to the program that uses [`__builtin_prefetch()`/Software Prefetching](https://lwn.net/Articles/255364/)
+     * for the non-SMT case, can we use `-fprefetch-loop-arrays` or `__builtin_prefetch()` trivially without complicating the code with a pile of conditionals?
  * need to add [`libhwloc`](https://www.open-mpi.org/projects/hwloc/)
      * `INSTANCES` to have an affinity per core
-     * `CONCURRENCY` to have an affinity where each shared CPU thread is pinned to the same core
+     * `PIPELINE` to have an affinity where each shared CPU thread is pinned to the same core
  * more codes
      * need an internal data store to aggreate data into
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
