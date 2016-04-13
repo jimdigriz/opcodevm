@@ -96,21 +96,21 @@ References:
 
 Two dimension targets:
 
-    OC_Tab	 (a) <-  (b)
+    OC_Tab		 (a) <-  (b)
 
 The dimension targets:
 
-    OC_Tabc	 (a) <-  (b) op  (c)
+    OC_Tabc		 (a) <-  (b) op  (c)
     
-    OC_TCMM	C<a> <- M[b] op M[c]
-    OC_TCMI	C<a> <- M[b] op c
-    OC_TMIC	M[a] <-   b  op C<c>
+    OC_TCMM		C<a> <- M[b] op M[c]
+    OC_TCMI		C<a> <- M[b] op c
+    OC_TMIC		M[a] <-   b  op C<c>
     ...
 
 Notes:
 
  * `a` can be equal to `b` and/or `c`
- * the `OC_TCbc` set (where destination is a column) makes the instruction suitable for pipelining, however at the cost of RAM (including L2 CPU cache!)
+ * `OC_TCxx`/`OC_TCx`, where destination is a column, makes the instruction suitable for pipelining, however at the cost of RAM (including L2 CPU cache!)
 
 ## Registers
 
@@ -162,13 +162,13 @@ TODO
 
 Operations:
 
-    OC_ALU+OC_ADD+OC_Tabc	 (a) <- (b) +  (c)
+    OC_ALU+OC_ADD+OC_Tabc	(a) <- (b) +  (c)
     
-    OC_MUL			 (a) <- (b) *  (c)
-    OC_DIV			 (a) <- (b) /  (c)
-    OC_AND			 (a) <- (b) &  (c)
-    OC_OR			 (a) <- (b) |  (c)
-    OC_SHF			 (a) <- (b) >> (c)	# (c) when negative is left shift
+    OC_MUL			(a) <- (b) *  (c)
+    OC_DIV			(a) <- (b) /  (c)
+    OC_AND			(a) <- (b) &  (c)
+    OC_OR			(a) <- (b) |  (c)
+    OC_SHF			(a) <- (b) >> (c)	# (c) when negative is left shift
 
 ### Misc
 
