@@ -82,29 +82,29 @@ The following will output the files `store/{time,bid,ask}` suitable for passing 
 
 ## Notation
 
-    <a>		vector
-    [a]		array
-     a		immediate
+    <a>         vector
+    [a]         array
+     a          immediate
 
 References:
 
-    I		immediate
-    C		column
-    M		memory (scratch)
-    S		store
-    G		global
+    I           immediate
+    C           column
+    M           memory (scratch)
+    S           store
+    G           global
 
 Two dimension targets:
 
-    OC_Tab		 (a) <-  (b)
+    OC_Tab      (a)  <-  (b)
 
 The dimension targets:
 
-    OC_Tabc		 (a) <-  (b) op  (c)
+    OC_Tabc     (a)  <-  (b) op  (c)
     
-    OC_TCMM		C<a> <- M[b] op M[c]
-    OC_TCMI		C<a> <- M[b] op c
-    OC_TMIC		M[a] <-   b  op C<c>
+    OC_TCMM     C<a> <- M[b] op M[c]
+    OC_TCMI     C<a> <- M[b] op c
+    OC_TMIC     M[a] <-   b  op C<c>
     ...
 
 Notes:
@@ -114,11 +114,10 @@ Notes:
 
 ## Registers
 
-    C<>		column, map to file/buffer
-    M[]		memory (scratch), per stride, window per PIPELINE
-    
-    G[]		global, map to trie/bloom/sketch/...
-    S[]		store, pointers to C<> or M[]
+    C<>         column, map to file/buffer
+    M[]         memory (scratch), zero'd per stride (window used for pipelining)
+    G[]         global, map to trie/bloom/sketch/...
+    S[]         store, pointers to C<> or M[]
 
 Notes:
 
@@ -128,17 +127,17 @@ Notes:
 
 ## Operations
 
-    map		G[]	<- {file,zero'd trie,bloom,sketch,...}
-    map		C[]	<- {file,zero'd buffer}
+    map         G[]  <- {file,zero'd trie,bloom,sketch,...}
+    map         C[]  <- {file,zero'd buffer}
     
-    alias	S[]	<- [CM]
+    alias       S[]  <- [CM]
     
-    fetch	S	<- G[]
-    store	G[]	<- S
+    fetch       S    <- G[]
+    store       G[]  <- S
     
-    load	[CM]	<- [CMI]
+    load        [CM] <- [CMI]
     
-    operate	[CM]	<- [CMI] op [CMI]
+    operate     [CM] <- [CMI] op [CMI]
 
 ## Opcodes
 
@@ -162,23 +161,23 @@ TODO
 
 Operations:
 
-    OC_ALU+OC_ADD+OC_Tabc	(a) <- (b) +  (c)
+    OC_ALU+OC_ADD+OC_Tabc     (a) <- (b) +  (c)
     
-    OC_MUL			(a) <- (b) *  (c)
-    OC_DIV			(a) <- (b) /  (c)
-    OC_AND			(a) <- (b) &  (c)
-    OC_OR			(a) <- (b) |  (c)
-    OC_SHF			(a) <- (b) >> (c)	# (c) when negative is left shift
+    OC_MUL                    (a) <- (b) *  (c)
+    OC_DIV                    (a) <- (b) /  (c)
+    OC_AND                    (a) <- (b) &  (c)
+    OC_OR                     (a) <- (b) |  (c)
+    OC_SHF                    (a) <- (b) >> (c)    # (c) when negative is left shift
 
 ### Misc
 
 Suitable for buffer `C<>` types where the payload can be a packet, so letting you extract words of length `d`:
 
-    OC_MISC+OC_BUF+OC_Tabc	{C<a>,M[a]} <- (b)[(c):d]
+    OC_MISC+OC_BUF+OC_Tabc   {C<a>,M[a]} <- (b)[(c):d]
 
 Not exposed (internally used when loading in data from `C<>`):
 
-    OC_MISC+OC_BSWP		C<a> <- bswap(C<a>)
+    OC_MISC+OC_BSWP          C<a>        <- bswap(C<a>)
 
 # Reading Material
 
