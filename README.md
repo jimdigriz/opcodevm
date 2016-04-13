@@ -78,6 +78,108 @@ The following will output the files `store/{time,bid,ask}` suitable for passing 
     mkdir -p store
     env DUPE=100 ./utils/prepdata.pl DAT_ASCII_EURUSD_T_201603.csv
 
+# Engine
+
+## Notation
+
+    <a>		vector
+    [a]		array
+     a		immediate
+
+References:
+
+    I		immediate
+    C		column
+    M		memory (scratch)
+    S		store
+    G		global
+
+Two dimension targets:
+
+    OC_Tab	 (a) <-  (b)
+
+The dimension targets:
+
+    OC_Tabc	 (a) <-  (b) op  (c)
+    
+    OC_TCMM	C<a> <- M[b] op M[c]
+    OC_TCMI	C<a> <- M[b] op c
+    OC_TMIC	M[a] <-   b  op C<c>
+    ...
+
+Notes:
+
+ * `a` can be equal to `b` and/or `c`
+ * the `OC_TCbc` set (where destination is a column) makes the instruction suitable for pipelining, however at the cost of RAM (including L2 CPU cache!)
+
+## Registers
+
+    C<>		column, map to file/buffer
+    M[]		memory (scratch), per stride, window per PIPELINE
+    
+    G[]		global, map to trie/bloom/sketch/...
+    S[]		store, pointers to C<> or M[]
+
+Notes:
+
+ * got to solve commutativity as we process the columns in strides and rollup
+ * `C<>`/`G<>` can be used read-only (`MAP_PRIVATE`) or read-write
+ * `C<>`/`G<>` when backed by a file can be used as a cache
+
+## Operations
+
+    map		G	<- {file,zero'd trie,bloom,sketch,...}
+    map		C	<- {file,zero'd buffer}
+    
+    alias	S[]	<- [CM]
+    
+    fetch	S	<- G
+    store	G	<- S
+    
+    load	[CM]	<- [CMI]
+    
+    operate	[CM]	<- [CMI] op [CMI]
+
+## Opcodes
+
+### Map and Alias
+
+Handled out-of-bound as part of engine initialisation.
+
+### Fetch
+
+TODO
+
+### Store
+
+TODO
+
+### Load
+
+TODO
+
+### ALU
+
+Operations:
+
+    OC_ALU+OC_ADD+OC_Tabc	 (a) <- (b) +  (c)
+    
+    OC_MUL			 (a) <- (b) *  (c)
+    OC_DIV			 (a) <- (b) /  (c)
+    OC_AND			 (a) <- (b) &  (c)
+    OC_OR			 (a) <- (b) |  (c)
+    OC_SHF			 (a) <- (b) >> (c)	# (c) when negative is left shift
+
+### Misc
+
+Suitable for buffer `C<>` types where the payload can be a packet, so letting you extract words of length `d`:
+
+    OC_MISC+OC_BUF+OC_Tabc	{C<a>,M[a]} <- (b)[(c):d]
+
+Not exposed (internally used when loading in data from `C<>`):
+
+    OC_MISC+OC_BSWP		C<a> <- bswap(C<a>)
+
 # Reading Material
 
  * [element distinctness/uniqueness](http://en.wikipedia.org/wiki/Element_distinctness_problem)
