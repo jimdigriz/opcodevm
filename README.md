@@ -123,18 +123,18 @@ Notes:
 Notes:
 
  * got to solve commutativity as we process the columns in strides and rollup
- * `C<>`/`G<>` can be used read-only (`MAP_PRIVATE`) or read-write
- * `C<>`/`G<>` when backed by a file can be used as a cache
+ * `C<>`/`G[]` can be used read-only (`MAP_PRIVATE`) or read-write
+ * `C<>`/`G[]` when backed by a file can be used as a cache
 
 ## Operations
 
-    map		G	<- {file,zero'd trie,bloom,sketch,...}
-    map		C	<- {file,zero'd buffer}
+    map		G[]	<- {file,zero'd trie,bloom,sketch,...}
+    map		C[]	<- {file,zero'd buffer}
     
     alias	S[]	<- [CM]
     
-    fetch	S	<- G
-    store	G	<- S
+    fetch	S	<- G[]
+    store	G[]	<- S
     
     load	[CM]	<- [CMI]
     
