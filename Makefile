@@ -14,7 +14,7 @@ VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet ||
 
 CPPFLAGS	+= -MD -MP -Iinclude -I.
 CFLAGS		+= -std=c11 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200112L -fPIC -pthread -DVERSION="\"$(VERSION)\""
-LDFLAGS		+= -rdynamic -lpthread -pthread
+LDFLAGS		+= -ldl -rdynamic -lpthread -pthread
 LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
 CFLAGS		+= -march=native -mtune=native
@@ -28,15 +28,13 @@ else
 endif
 
 ifdef PROFILE
-	CFLAGS  += -pg -fprofile-generate -ftest-coverage
-	LDFLAGS += -pg -lgcov -coverage
+	CFLAGS	+= -finstrument-functions -finstrument-functions-exclude-file-list=inst.c,/include/
+else
+	OBJS	:= $(filter-out inst.o,$(OBJS))
 endif
 
 # better stripping
-CFLAGS	+= -fdata-sections
-ifndef PROFILE
-	CFLAGS	+= -ffunction-sections
-endif
+CFLAGS	+= -fdata-sections -ffunction-sections
 LDFLAGS	+= -Wl,--gc-sections
 
 .SUFFIXES:
