@@ -104,9 +104,10 @@ void __cyg_profile_func_exit(void *func, void *callsite)
 
 	ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
 	pthread_mutex_lock(&mutex);
-	fprintf(stderr, "%dT%d@%d: %p PERF_COUNT_HW_REF_CPU_CYCLES = %lld\n", pid, tid, depth, func, count);
-	pthread_mutex_unlock(&mutex);
 
+	fprintf(stderr, "%dT%d@%d: %p PERF_COUNT_HW_REF_CPU_CYCLES = %lld\n", pid, tid, depth, func, count);
+
+	pthread_mutex_unlock(&mutex);
 	ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
 	depth--;
