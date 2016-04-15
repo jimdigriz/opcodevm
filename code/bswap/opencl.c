@@ -16,6 +16,7 @@
 #endif
 
 #include "engine.h"
+#include "inst.h"
 
 cl_context context;
 cl_program program;
@@ -29,10 +30,16 @@ cl_command_queue command_queue;
 				if (cl_ret != CL_SUCCESS) \
 					errx(EX_SOFTWARE, "clSetKernelArg("#x", "#y", "#z") = %d", cl_ret)
 
+PERF_STORE(bswap_32_opencl);
 static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
 	const size_t global_work_size[] = { data->numrec / 16 };
 	cl_mem memobj;
 	cl_int cl_ret;
+
+	assert(*offset == 0);
+
+	PERF_INIT(bswap_32_opencl, PERF_CYCLES);
+	PERF_UNPAUSE(bswap_32_opencl, *offset);
 
 	memobj = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, data->numrec * data->reclen, data->addr, &cl_ret);
 	CL_CHKERR(clCreateBuffer);
@@ -64,9 +71,12 @@ static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
 	CL_CHKERR(clReleaseMemObject);
 
 	*offset += global_work_size[0] * 16;
+
+	PERF_PAUSE(bswap_32_opencl);
+	PERF_MEASURE(bswap_32_opencl, *offset);
 }
 
-static void __attribute__ ((constructor)) init()
+static void __attribute__((constructor)) init()
 {
 	cl_platform_id platforms;
 	cl_device_id devices;

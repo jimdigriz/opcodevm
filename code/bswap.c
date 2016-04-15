@@ -51,7 +51,7 @@ static void reg(void (*f)(uint64_t *, struct data *, ...), ...)
 	assert(op[RECLEN2POS(reclen)][MAX_SLOTS] == NULL);
 }
 
-static void __attribute__ ((constructor)) init()
+static void __attribute__((constructor)) init()
 {
 	opcode[OPCODE(MISC, BSWP)].call	= call;
 	opcode[OPCODE(MISC, BSWP)].reg	= reg;
