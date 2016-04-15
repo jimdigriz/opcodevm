@@ -103,7 +103,7 @@ static void * engine_instance(void *arg)
 	const uint64_t stride = (l2_cache_size / reclen / 2)
 					- ((l2_cache_size / reclen / 2) % pagesize);
 
-	for (uint64_t pos = eii->instance * stride; pos < minrec; pos += stride) {
+	for (uint64_t pos = eii->instance * stride; pos < minrec; pos += instances * stride) {
 		const uint64_t numrec = ((minrec - pos) > stride) ? stride : minrec - pos;
 
 		for (unsigned int i = 0; i < eii->ndata; i++) {
