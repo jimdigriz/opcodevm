@@ -26,7 +26,7 @@
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	PERF_STORE(bswap_##x##_x86_64);								\
+#define FUNC(x)	PERF_STORE(bswap_##x##_x86_64)								\
 		static void bswap_##x##_x86_64(uint64_t *offset, struct data *data, ...)		\
 		{											\
 			uint##x##_t *d = data->addr;							\

@@ -5,7 +5,7 @@
 #include "engine.h"
 #include "inst.h"
 
-#define FUNC(x)	PERF_STORE(bswap_##x##_c);						\
+#define FUNC(x)	PERF_STORE(bswap_##x##_c)						\
 		static void bswap_##x##_c(uint64_t *offset, struct data *data, ...)	\
 		{									\
 			uint##x##_t *d = data->addr;					\

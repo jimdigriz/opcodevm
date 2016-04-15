@@ -30,7 +30,7 @@ cl_command_queue command_queue;
 				if (cl_ret != CL_SUCCESS) \
 					errx(EX_SOFTWARE, "clSetKernelArg("#x", "#y", "#z") = %d", cl_ret)
 
-PERF_STORE(bswap_32_opencl);
+PERF_STORE(bswap_32_opencl)
 static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
 	const size_t global_work_size[] = { data->numrec / 16 };
 	cl_mem memobj;
