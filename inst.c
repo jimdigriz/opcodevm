@@ -173,7 +173,7 @@ static void __attribute((destructor)) report()
 
 			uint64_t avg = counter->sum / perf->workdone;
 			/* this seems meaningless as the variance is usually low */
-			uint64_t sdd = sqrt((counter->sumsq - (counter->sum * counter->sum) / perf->workdone) / (perf->workdone - 1));
+			uint64_t sdd = sqrt((counter->sumsq - (counter->sum * counter->sum) / perf->workdone) / (perf->workdone * (perf->workdone - 1)));
 			fprintf(stderr, "%s=%" PRIu64 ":%" PRIu64 "~%" PRIu64 ":%" PRIu64 "\n",
 					perf_type_name[counter->type], counter->min, avg, sdd, counter->max);
 		}
