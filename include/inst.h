@@ -35,6 +35,7 @@ struct perf {
 
 	int		tid;
 	const char	*name;
+	unsigned int	ncounters;
 };
 
 struct perf * perf_init(const char *, unsigned int, ...);

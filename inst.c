@@ -48,6 +48,7 @@ struct perf * perf_init(const char *name, unsigned int perfn, ...)
 	perf->fd = -1;
 	perf->tid = gettid();
 	perf->name = name;
+	perf->ncounters = perfn;
 
 	assert(perfn > 0 && perfn <= PERF_LAST);
 
@@ -114,6 +115,8 @@ void perf_measure(struct perf *perf, const uint64_t offset)
 
 	if (read(perf->fd, &data, sizeof(struct read_format)) == -1)
 		err(EX_SOFTWARE, "read(perf->fd)");
+
+	assert(data.nr == perf->ncounters);
 
 	uint64_t workdone = offset - perf->offset;
 	perf->workdone += workdone;
