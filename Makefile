@@ -57,7 +57,7 @@ ifndef NOSTRIP
 endif
 
 clean:
-	rm -rf $(SRCS:%.c=%.d) $(CODESRCS:%.c=%.d) $(OPSRCS:%.c=%.d) $(TARGETS) $(OBJS)
+	rm -rf $(SRCS:%.c=%.d) $(CODESRCS:%.c=%.d) $(OPSRCS:%.c=%.d) $(TARGETS) $(OBJS) inst.o
 .PHONY: clean
 
 -include $(SRCS:%.c=%.d)
