@@ -12,8 +12,7 @@ Can be applied to:
 
 ## Issues
 
- * need a benchmarker, especially as the `dlopen()`/OpenCL hooks make everything slower; about 40ms (`time env NODISP=1 NOCL=1 strace -tt ./opcodevm 2>&1 | sed -n '1 p; /madvise/ p'`)
-     * runtime benchmark of op's to pick fastest one (need to think [how to save this state across runs](https://lwn.net/Articles/572125/))
+ * 'analysis' tool where all opcode implementations are tested and the fastest is picked for future runs
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned

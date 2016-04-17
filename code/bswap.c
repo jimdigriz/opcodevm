@@ -1,58 +1,84 @@
-#include <stdint.h>
-#include <stdarg.h>
+#include <stddef.h>
 #include <stdlib.h>
-#include <sysexits.h>
-#include <err.h>
-#include <string.h>
 #include <assert.h>
+#include <err.h>
+#include <sysexits.h>
+#include <string.h>
 
 #include "engine.h"
 
-#define	RECLEN2POS(x)	((int)(x/2-1))
-#define MAX_SLOTS	3
+#define OPCODE bswap
 
-/* +1 as we need a NULL terminator on the end of the list */
-void (*op[RECLEN2POS(16)][MAX_SLOTS + 1])(uint64_t *, struct data *, ...);
+void (*bswap16)(size_t *offset, const size_t nrec, void *D);
+void (*bswap32)(size_t *offset, const size_t nrec, void *D);
+void (*bswap64)(size_t *offset, const size_t nrec, void *D);
 
-static void call(uint64_t *offset, struct data *data, ...)
+static void OPCODE(OPCODE_PARAMS)
 {
-	va_list ap;
-	va_start(ap, data);
+#	define	JUMP(x)	case (x/8): bswap##x(offset, nrec, D[dest]->addr); break;
 
-	uint64_t n = va_arg(ap, uint64_t);
-
-	va_end(ap);
-
-	assert(RECLEN2POS(data[n].reclen) > -1 && RECLEN2POS(data[n].reclen) < RECLEN2POS(16));
-
-	int i = 0;
-	while (*offset < data[n].numrec && op[RECLEN2POS(data[n].reclen)][i])
-		op[RECLEN2POS(data[n].reclen)][i++](offset, &data[n]);
-}
-
-static void reg(void (*f)(uint64_t *, struct data *, ...), ...)
-{
-	va_list ap;
-	va_start(ap, f);
-
-	unsigned int reclen = va_arg(ap, unsigned int);
-	assert(RECLEN2POS(reclen) > -1 && RECLEN2POS(reclen) < RECLEN2POS(16));
-
-	va_end(ap);
-
-	/* +1 is catch by the assert later */
-	for (unsigned int i = 0; i < MAX_SLOTS + 1; i++) {
-		if (!op[RECLEN2POS(reclen)][i]) {
-			op[RECLEN2POS(reclen)][i] = f;
-			break;
-		}
+	switch (D[dest]->width) {
+	JUMP(16)
+	JUMP(32)
+	JUMP(64)
+	default:
+		errx(EX_SOFTWARE, "unable to handle width %zu", D[dest]->width);
 	}
-
-	assert(op[RECLEN2POS(reclen)][MAX_SLOTS] == NULL);
 }
+
+static void hook(struct opcode_imp *imp)
+{
+#	define HOOK(x) case x: bswap##x = imp->func; break;
+
+	switch (imp->width) {
+	HOOK(16)
+	HOOK(32)
+	HOOK(64)
+	default:
+		errx(EX_SOFTWARE, "unable to handle width %zu", imp->width);
+	}
+}
+
+static void *profD;
+static size_t profW;
+
+static void profile_init(const size_t length, const size_t alignment, const size_t width)
+{
+	assert(length % width == 0);
+	assert(alignment > 0);
+	assert(width > 0);
+
+	profD = aligned_alloc(alignment, length);
+	if (!profD)
+		err(EX_OSERR, "aligned_alloc()");
+
+	profW = width;
+
+	memset(profD, 69, profW);
+}
+
+static void profile_fini()
+{
+	free(profD);
+
+	profD = NULL;
+	profW = 0;
+}
+
+static void profile()
+{
+}
+
+static struct opcode opcode = {
+	.func		= OPCODE,
+	.hook		= hook,
+	.profile_init	= profile_init,
+	.profile_fini	= profile_fini,
+	.profile	= profile,
+	.name		= "bswap",
+};
 
 static void __attribute__((constructor)) init()
 {
-	opcode[OPCODE(MISC, BSWP)].call	= call;
-	opcode[OPCODE(MISC, BSWP)].reg	= reg;
+	engine_opcode_init(&opcode);
 }

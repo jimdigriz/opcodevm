@@ -3,7 +3,6 @@
 #include <assert.h>
 
 #include "engine.h"
-#include "inst.h"
 
 #include <x86intrin.h>
 
@@ -26,21 +25,14 @@
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	PERF_STORE(bswap_##x##_x86_64)								\
-		static void bswap_##x##_x86_64(uint64_t *offset, struct data *data, ...)		\
+#define FUNC(x)	static void bswap_##x##_x86_64(uint64_t *offset, struct data *data, ...)		\
 		{											\
 			uint##x##_t *d = data->addr;							\
-													\
-			PERF_INIT(bswap_##x##_x86_64, PERF_CYCLES);					\
-			PERF_UNPAUSE(bswap_##x##_x86_64, *offset);					\
 													\
 			for (; *offset < data->numrec - (data->numrec % (VEC_LEN/x));			\
 					*offset += VEC_LEN/x)						\
 				VEC_STR((VEC *)&d[*offset],						\
 				VEC_SHF(VEC_LDR((VEC *)&d[*offset]), mask##x));				\
-													\
-			PERF_PAUSE(bswap_##x##_x86_64);							\
-			PERF_MEASURE(bswap_##x##_x86_64, data->numrec - (data->numrec % (VEC_LEN/x)));	\
 		}
 
 FUNC(16)

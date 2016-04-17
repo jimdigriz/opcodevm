@@ -1,24 +1,24 @@
 #include <stdint.h>
 #include <byteswap.h>
-#include <assert.h>
 
 #include "engine.h"
-#include "inst.h"
 
-#define FUNC(x)	PERF_STORE(bswap_##x##_c)						\
-		static void bswap_##x##_c(uint64_t *offset, struct data *data, ...)	\
+#define OPCODE	bswap
+#define IMP	c
+
+#define FUNC(x) static void bswap_##x##_c(size_t *offset, const size_t nrec, void *D)	\
 		{									\
-			uint##x##_t *d = data->addr;					\
+			uint##x##_t *d = D;						\
 											\
-			PERF_INIT(bswap_##x##_c, PERF_CYCLES);				\
-			PERF_UNPAUSE(bswap_##x##_c, *offset);				\
-											\
-			for (; *offset < data->numrec; (*offset)++)			\
+			for (; *offset < nrec; (*offset)++)				\
 				d[*offset] = bswap_##x(d[*offset]);			\
-											\
-			PERF_PAUSE(bswap_##x##_c);					\
-			PERF_MEASURE(bswap_##x##_c, *offset);				\
-		}
+		}									\
+		static struct opcode_imp bswap##_##x##_c_imp = {			\
+			.func	= bswap##_##x##_c,					\
+			.cost	= 0,							\
+			.width	= x,							\
+			.name	= "bswap",						\
+		};
 
 FUNC(16)
 FUNC(32)
@@ -26,10 +26,8 @@ FUNC(64)
 
 static void __attribute__((constructor)) init()
 {
-	assert(opcode[OPCODE(MISC, BSWP)].reg != NULL);
-
-#	define REG(x)	opcode[OPCODE(MISC, BSWP)].reg(bswap_##x##_c, x/8);
-	REG(16);
-	REG(32);
-	REG(64);
+#	define HOOK(x)	engine_opcode_imp_init(&bswap##_##x##_c_imp)
+	HOOK(16);
+	HOOK(32);
+	HOOK(64);
 }

@@ -1,72 +1,67 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <sys/queue.h>
 
-#include <store.h>
+#include "store.h"
 
 struct data {
-	void		*addr;
-	uint64_t	numrec;
-	type		type;
-	uint8_t		reclen;
-	char		*path;
-	int		fd;
+	void	*addr;
+	size_t	nrec;
+	size_t	width;
+	type	type;
+	char	*path;
+	int	fd;
 };
 
-/*
- * The instruction encodings (OOOrrCCC)
- */
-#define OPCODE(x, y) 	(OC_##x|OC_##y)
-/* class */
-#define OC_CLASS(code)	((code) & 0x07)
-#define OC_LD	0x00
-#define OC_ST	0x01
-#define OC_ALU	0x02
-#define OC_JMP	0x03
-#define OC_RET	0x06
-#define OC_MISC	0x07
+#define OPCODE_PARAMS	size_t * offset, const size_t nrec, \
+			struct data *D[], \
+			const size_t dest, const size_t src1, const size_t src2
 
-/* LD/ST */
-#define OC_MODE(code)	((code) & 0xe0)
-#define OC_IMM	0x00
-#define OC_MEM	0x20
-#define OC_COL	0x40
+struct opcode_imp {
+	void	(*func)(size_t *offset, const size_t nrec, void *D);
 
-/* ALU/JMP */
-#define OC_OP(code)	((code) & 0xe0)
-#define OC_ADD	0x00
-#define OC_MUL	0x10
-#define OC_DIV	0x20
-#define OC_OR	0x30
-#define OC_AND	0x40
-#define OC_JA	0x00
-#define OC_JEQ	0x10
-#define OC_JGT	0x20
-#define OC_JGE	0x30
-#define OC_SRC(code)	((code) & 0x08)
-#define OC_K	0x00
-#define OC_M	0x00
+	size_t	cost;
+	size_t	width;
 
-/* MISC */
-#define OC_BSWP	0x00
-#define OC_SHFT	0x10
-
-struct insn {
-	uint8_t		code;
-	int64_t		k;
-};
-
-/* programs must terminate with a RET (matches also a zero'd struct) */
-struct program {
-	struct insn	*insns;
-	size_t		len;
-	size_t		mwords;
+	char	*name;
 };
 
 struct opcode {
-	void (*call)(uint64_t *, struct data *, ...);
-	void (*reg)(void (*f)(uint64_t *, struct data *, ...), ...);
-};
-extern struct opcode opcode[];
+	SLIST_ENTRY(opcode) opcode;
 
+	void	(*func)(OPCODE_PARAMS);
+	void	(*hook)(struct opcode_imp *imp);
+
+	void	(*profile_init)(const size_t, const size_t, const size_t);
+	void	(*profile_fini)();
+	void	(*profile)();
+
+	char	*name;
+};
+
+struct bytecode {
+	uint8_t		code;
+};
+
+struct insn {
+	char		*code;
+
+	size_t		dest;
+	size_t		src1;
+};
+
+struct routine {
+	struct insn	*insns;
+	size_t		len;
+};
+
+struct program {
+	struct routine	*begin;
+	struct routine	*loop;
+	struct routine	*end;
+};
+
+void engine_opcode_init(struct opcode *opcode);
+void engine_opcode_imp_init(struct opcode_imp *imp);
 void engine_init();
-void engine_run(struct program *, int ndata, struct data *);
+void engine_run(struct program *program, size_t nD, struct data *D);

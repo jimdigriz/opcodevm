@@ -2,6 +2,7 @@
 !.gitignore
 
 opcodevm
+include/jumptable.h
 
 store
 
