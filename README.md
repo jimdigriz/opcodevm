@@ -37,6 +37,7 @@ Can be applied to:
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
  * figure out something better that `-m{arch,tune}=native` for `CFLAGS`
  * compile only the ops that will work for the target, for example do not cook `x86_64` on ARM kit
+ * [fix variance](http://www.johndcook.com/blog/standard_deviation/)
  * {Net,Open}BSD and Mac OS X support
      * remove GNU'isms
 
