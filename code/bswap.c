@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <err.h>
 #include <sysexits.h>
+#include <sys/mman.h>
 #include <string.h>
 
 #include "engine.h"
@@ -47,27 +48,26 @@ static struct data *D;
 
 static void profile_init(const size_t length, const size_t alignment, const size_t width)
 {
-	assert(alignment > 0);
+	assert(alignment == 4096);
 	assert(width > 0);
+	assert(alignment % width == 0);
 	assert(length % width == 0);
 
 	D = calloc(1, sizeof(struct data));
 	if (!D)
 		err(EX_OSERR, "calloc()");
 
-	D[0].addr = aligned_alloc(alignment, length);
+	D[0].addr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (!D[0].addr)
-		err(EX_OSERR, "aligned_alloc()");
+		err(EX_OSERR, "mmap()");
 
 	D[0].width	= width;
 	D[0].nrec	= length / width;
-
-	memset(D[0].addr, 0, length);
 }
 
 static void profile_fini()
 {
-	free(D[0].addr);
+	munmap(D[0].addr, D[0].width * D[0].nrec);
 	free(D);
 }
 

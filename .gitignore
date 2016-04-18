@@ -4,6 +4,8 @@
 opcodevm
 include/jumptable.h
 
+utils/profile
+
 store
 
 gmon.out

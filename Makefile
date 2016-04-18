@@ -34,7 +34,7 @@ LDFLAGS	+= -Wl,--gc-sections
 
 .SUFFIXES:
 
-all: $(TARGETS)
+all: $(TARGETS) utils/profile
 
 include/jumptable.h: Makefile
 	@echo '#pragma GCC diagnostic push'				>  $@
@@ -49,7 +49,13 @@ include/jumptable.h: Makefile
 	@echo								>> $@
 	@echo '#pragma GCC diagnostic pop'				>> $@
 
-engine.o: Makefile include/jumptable.h
+engine.o: include/jumptable.h Makefile
+
+utils/profile: utils/profile.o engine-hooks.o Makefile
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -o $@ $(filter %.o, $^)
+ifndef NOSTRIP
+	$(CROSS_COMPILE)strip $@
+endif
 
 $(TARGET): $(OBJS) Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -o $@ $(filter %.o, $^)
@@ -67,7 +73,7 @@ ifndef NOSTRIP
 endif
 
 clean:
-	rm -rf $(SRCS:%.c=%.d) $(CODESRCS:%.c=%.d) $(OPSRCS:%.c=%.d) $(TARGETS) $(OBJS) include/jumptable.h
+	rm -rf $(SRCS:%.c=%.d) $(CODESRCS:%.c=%.d) $(OPSRCS:%.c=%.d) $(TARGETS) $(OBJS) utils/profile utils/profile.o include/jumptable.h
 .PHONY: clean
 
 -include $(SRCS:%.c=%.d)
