@@ -15,6 +15,9 @@ void (*bswap64)(size_t *offset, const size_t nrec, void *D);
 
 static void OPCODE(OPCODE_PARAMS)
 {
+	(void)src1;
+	(void)src2;
+
 #	define	JUMP(x)	case (x/8): bswap##x(offset, nrec, D[dest]->addr); break;
 
 	switch (D[dest]->width) {
