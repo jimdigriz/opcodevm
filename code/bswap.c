@@ -42,34 +42,39 @@ static void hook(struct opcode_imp *imp)
 	}
 }
 
-static void *profD;
-static size_t profW;
+static struct data *D;
 
 static void profile_init(const size_t length, const size_t alignment, const size_t width)
 {
-	assert(length % width == 0);
 	assert(alignment > 0);
 	assert(width > 0);
+	assert(length % width == 0);
 
-	profD = aligned_alloc(alignment, length);
-	if (!profD)
+	D = calloc(1, sizeof(struct data));
+	if (!D)
+		err(EX_OSERR, "calloc()");
+
+	D[0].addr = aligned_alloc(alignment, length);
+	if (!D[0].addr)
 		err(EX_OSERR, "aligned_alloc()");
 
-	profW = width;
+	D[0].width	= width;
+	D[0].nrec	= length / width;
 
-	memset(profD, 69, profW);
+	memset(D[0].addr, 0, length);
 }
 
 static void profile_fini()
 {
-	free(profD);
-
-	profD = NULL;
-	profW = 0;
+	free(D[0].addr);
+	free(D);
 }
 
 static void profile()
 {
+	size_t offset = 0;
+	OPCODE(&offset, D[0].nrec, &D, 0, 0, 0);
+	assert(offset == D[0].nrec);
 }
 
 static struct opcode opcode = {
