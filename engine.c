@@ -34,7 +34,7 @@ static const char *libs[] = {
 };
 
 static long instances = 1;
-static long pagesize, l1_dcache_linesize, l2_cache_size;
+static long pagesize, l2_cache_size;
 
 void engine_opcode_init(struct opcode *opcode)
 {
@@ -72,12 +72,6 @@ void engine_init() {
 	pagesize = sysconf(_SC_PAGESIZE);
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
-
-	l1_dcache_linesize = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
-	if (l1_dcache_linesize == -1)
-		err(EX_OSERR, "sysconf(_SC_LEVEL1_DCACHE_LINESIZE)");
-	if (pagesize % l1_dcache_linesize)
-		errx(EX_SOFTWARE, "pagesize %% l1_dcache_linesize");
 
 	l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
 	if (l2_cache_size == -1)
