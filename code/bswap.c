@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "engine.h"
+#include "engine-hooks.h"
 
 #define OPCODE bswap
 

@@ -2,6 +2,7 @@
 #include <byteswap.h>
 
 #include "engine.h"
+#include "engine-hooks.h"
 
 #define OPCODE	bswap
 #define IMP	c

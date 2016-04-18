@@ -13,8 +13,8 @@
 #include <assert.h>
 
 #include "engine.h"
+#include "engine-hooks.h"
 
-static SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
 static void (*opcode[256])(OPCODE_PARAMS);
 
 #define MAX_PROG_LEN 100
@@ -35,28 +35,6 @@ static const char *libs[] = {
 
 static long instances = 1;
 static long pagesize, l2_cache_size;
-
-void engine_opcode_init(struct opcode *opcode)
-{
-	struct opcode *np;
-	SLIST_FOREACH(np, &opcode_list, opcode)
-		if (!strcmp(opcode->name, np->name))
-			errx(EX_SOFTWARE, "duplicate %s opcode calling init()", opcode->name);
-	SLIST_INSERT_HEAD(&opcode_list, opcode, opcode);
-}
-
-void engine_opcode_imp_init(struct opcode_imp *opcode_imp)
-{
-	struct opcode *np;
-	SLIST_FOREACH(np, &opcode_list, opcode) {
-		if (strcmp(opcode_imp->name, np->name))
-			continue;
-
-		np->hook(opcode_imp);
-		return;
-	}
-	errx(EX_SOFTWARE, "missing %s opcode", opcode_imp->name);
-}
 
 void engine_init() {
 	errno = 0;
@@ -83,11 +61,7 @@ void engine_init() {
 			errx(EX_SOFTWARE, "dlopen(%s): %s\n", *l, dlerror());
 	}
 
-	struct opcode *np;
-	SLIST_FOREACH(np, &opcode_list, opcode)
-		if (!strcmp(np->name, "bswap"))
-			opcode[1] = np->func;
-	assert(opcode[1]);
+	engine_opcode_map(opcode);
 }
 
 struct engine_instance_info {
