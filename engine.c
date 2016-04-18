@@ -180,6 +180,11 @@ compile:
 	if (bytecode[0])
 		goto compile_finish;
 
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wpedantic"
+	opcode[0] = &&bytecode0;
+#	pragma GCC diagnostic pop
+
 	bytecode[0] = cf[1];
 	bytecode[1] = cf[0];
 
