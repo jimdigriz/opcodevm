@@ -128,20 +128,19 @@ static void * engine_instance(void *arg)
 		width += eii->D[i].width;
 	}
 
-	/* forgive me god, for I have sinned, lolz */
 	size_t nrec, offset;
+	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
+	const uint64_t stride = (l2_cache_size / width / 2)
+					- ((l2_cache_size / width / 2) % pagesize);
+
+	/* forgive me god, for I have sinned, lolz */
+	uintptr_t **ip;
 #	define CALL(x)	assert(opcode[x]);			\
 			offset = 0;				\
 			opcode[x](&offset, nrec, &d, 0, 0, 0);	\
 			assert(offset == nrec)
 	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
 #	define NEXT goto **ip++
-
-	uintptr_t **ip;
-
-	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
-	const uint64_t stride = (l2_cache_size / width / 2)
-					- ((l2_cache_size / width / 2) % pagesize);
 
 	goto compile;
 compile_ret:
