@@ -11,9 +11,12 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/queue.h>
 
 #include "engine.h"
 #include "engine-hooks.h"
+
+SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
 
 static void (*opcode[256])(OPCODE_PARAMS);
 
@@ -61,7 +64,11 @@ void engine_init() {
 			errx(EX_SOFTWARE, "dlopen(%s): %s\n", *l, dlerror());
 	}
 
-	engine_opcode_map(opcode);
+	struct opcode *np;
+	SLIST_FOREACH(np, &opcode_list, opcode)
+		if (!strcmp(np->name, "bswap"))
+			opcode[1] = np->func;
+	assert(opcode[1]);
 }
 
 struct engine_instance_info {

@@ -6,7 +6,7 @@
 
 #include "engine.h"
 
-static SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
+extern SLIST_HEAD(opcode_list, opcode) opcode_list;
 
 void engine_opcode_init(struct opcode *opcode)
 {
@@ -28,13 +28,4 @@ void engine_opcode_imp_init(struct opcode_imp *opcode_imp)
 		return;
 	}
 	errx(EX_SOFTWARE, "missing %s opcode", opcode_imp->name);
-}
-
-void engine_opcode_map(void (*opcode[256])(OPCODE_PARAMS))
-{
-	struct opcode *np;
-	SLIST_FOREACH(np, &opcode_list, opcode)
-		if (!strcmp(np->name, "bswap"))
-			opcode[1] = np->func;
-	assert(opcode[1]);
 }
