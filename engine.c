@@ -77,10 +77,6 @@ void engine_init() {
 	if (l2_cache_size == -1)
 		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
 
-	struct rlimit rlim;
-	if (getrlimit(RLIMIT_MEMLOCK, &rlim))
-		err(EX_OSERR, "getrlimit(RLIMIT_MEMLOCK)");
-
 	for (const char **l = libs; *l; l++) {
 		void *handle = dlopen(*l, RTLD_NOW|RTLD_LOCAL);
 		if (!handle)
