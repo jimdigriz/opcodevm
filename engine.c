@@ -17,8 +17,10 @@
 static SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
 static void (*opcode[256])(OPCODE_PARAMS);
 
+#define MAX_PROG_LEN 100
+
 static pthread_mutex_t bytecode_mutex = PTHREAD_MUTEX_INITIALIZER;
-static uintptr_t *bytecode[100];
+static uintptr_t *bytecode[MAX_PROG_LEN];
 
 static const char *libs[] = {
 	/* first load the code points (order not important) */
@@ -195,6 +197,8 @@ compile_finish:
 
 void engine_run(struct program *program, size_t nD, struct data *D)
 {
+	assert(program->loop->len < MAX_PROG_LEN);
+
 	if (strcmp(program->loop->insns[program->loop->len - 1].code, "ret"))
 		errx(EX_USAGE, "program needs to end with 'ret'");
 
