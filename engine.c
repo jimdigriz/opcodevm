@@ -94,8 +94,8 @@ void engine_init() {
 	struct opcode *np;
 	SLIST_FOREACH(np, &opcode_list, opcode)
 		if (!strcmp(np->name, "bswap"))
-			opcode[0] = np->func;
-	assert(opcode[0]);
+			opcode[1] = np->func;
+	assert(opcode[1]);
 }
 
 struct engine_instance_info {
@@ -166,9 +166,9 @@ ret:
 	return NULL;
 
 	/* here is our bytecode jumptable */
-#	include "jumptable.h"
-bytecode255:
+bytecode0:
 	goto ret;
+#	include "jumptable.h"
 
 	/* compiler placed here to get access to the cf table from jumptable.h */
 compile:
@@ -180,8 +180,8 @@ compile:
 	if (bytecode[0])
 		goto compile_finish;
 
-	bytecode[0] = cf[0];
-	bytecode[1] = cf[255];
+	bytecode[0] = cf[1];
+	bytecode[1] = cf[0];
 
 compile_finish:
 	pthread_mutex_unlock(&bytecode_mutex);

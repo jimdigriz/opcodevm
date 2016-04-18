@@ -40,8 +40,8 @@ include/jumptable.h: Makefile
 	@echo '#pragma GCC diagnostic push'				>  $@
 	@echo '#pragma GCC diagnostic ignored "-Wpedantic"'		>> $@
 	@echo								>> $@
-	@# code '255' is "ret" and hardcoded in engine.c
-	@$(foreach i,$(shell seq 0 254),printf "bytecode$(i):\n\t\tCALL($(i));\n\t\tNEXT;\n" >> $@;)
+	@# code '0' is "ret" and hardcoded in engine.c
+	@$(foreach i,$(shell seq 1 255),printf "bytecode$(i):\n\t\tCALL($(i));\n\t\tNEXT;\n" >> $@;)
 	@echo								>> $@
 	@echo 'static uintptr_t *cf[] = {'				>> $@
 	@$(foreach i,$(shell seq 0 255),printf "\t&&bytecode$(i),\n"	>> $@;)
