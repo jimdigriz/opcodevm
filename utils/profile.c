@@ -22,7 +22,8 @@ SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list
 
 static long cycles = 1000;
 static long nbestof = 3;
-static long pagesize, l2_cache_size;
+static long align = 0;
+static long length = 0;
 
 struct result {
 	uint64_t	*bestof;
@@ -116,13 +117,30 @@ static void profile_engine_init() {
 	if (cycles < nbestof)
 		errx(EX_DATAERR, "CYCLES is less than BESTOF");
 
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
+	if (getenv("LENGTH"))
+		length = strtol(getenv("LENGTH"), NULL, 10);
+	if (errno == ERANGE || length < 0)
+		err(EX_DATAERR, "invalid LENGTH");
+	if (length == 0) {
+		length = sysconf(_SC_LEVEL2_CACHE_SIZE);
+		if (length == -1)
+			err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
+
+		/* default half of L2 cache to not saturate it */
+		length /= 2;
+	}
+
+	if (getenv("ALIGN"))
+		align = strtol(getenv("ALIGN"), NULL, 10);
+	if (errno == ERANGE || align < 0)
+		err(EX_DATAERR, "invalid ALIGN");
+	if (align == 0)
+		align = sysconf(_SC_PAGESIZE);
+	if (align == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
-	l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
-	if (l2_cache_size == -1)
-		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
+	if (length % align != 0)
+		errx(EX_DATAERR, "LENGTH %% ALIGN != 0");
 }
 
 static struct result * perf_benchmark(int p, struct opcode *opcode)
@@ -235,7 +253,7 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	struct opcode *opcode = SLIST_FIRST(&opcode_list);
-	opcode->profile_init(l2_cache_size / 2, pagesize, 4);
+	opcode->profile_init(length, align, 4);
 
 	struct result *op = perf_benchmark(p, opcode);
 	printf("op perf:\n");
