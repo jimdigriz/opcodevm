@@ -52,7 +52,7 @@ include/jumptable.h: Makefile
 engine.o: include/jumptable.h Makefile
 
 utils/profile: utils/profile.o engine-hooks.o Makefile
-	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -o $@ $(filter %.o, $^)
+	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -lm -o $@ $(filter %.o, $^)
 ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif

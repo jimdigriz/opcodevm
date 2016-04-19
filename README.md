@@ -65,6 +65,19 @@ The following environment variables are available:
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
  * **`INSTANCES` (default: 1):** engine parallelism, pointless to set above `getconf _NPROCESSORS_ONLN`
 
+## Profiling Opcode Implementations
+
+The following [pins the task to the first CPU](http://linux.die.net/man/1/taskset) and prints out the three minimum CPU cycle runs (`PERF_COUNT_HW_REF_CPU_CYCLES`), followed by the average and its [variance](http://www.johndcook.com/blog/standard_deviation/), and finally by the maximum cycle time:
+
+    taskset 1 ./utils/profile code/bswap.so code/bswap/c.so
+
+**N.B.** the 'NOOP' result is to give an indication of the magnitude overhead of the profiling its-self
+
+The following environment variables are available:
+
+ * **`CYCLES` (default: 1000):** number of runs
+ * **`BESTOF` (default: 3):** print best of X minimums
+
 # Sample Data
 
  * [HistData](http://www.histdata.com/download-free-forex-data/) ([format](http://www.histdata.com/f-a-q/data-files-detailed-specification/))
