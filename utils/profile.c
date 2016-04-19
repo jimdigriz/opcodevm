@@ -139,7 +139,7 @@ static void profile_engine_init() {
 	if (align == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
-	if (length % align != 0)
+	if (length % align)
 		errx(EX_DATAERR, "LENGTH %% ALIGN != 0");
 }
 
