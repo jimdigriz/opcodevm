@@ -14,17 +14,17 @@ Can be applied to:
 
  * 'analysis' tool where all opcode implementations are tested and the fastest is picked for future runs
  * as well as the `init()` function in a plugin, need a `cleanup()` hook too (OpenCL leaves crap everywhere)
- * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarentee alignment though?)
+ * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarantee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
- * implement scatter gatter vector support (needed for datagram payloads)
+ * implement scatter gather vector support (needed for datagram payloads)
  * input sources
      * embedded HTTP
      * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
      * `NFQUEUE` over `mmap()`
- * think about a slower low latency option suitable for realtime streaming data (NAPI-esque)
+ * think about a slower low latency option suitable for real time streaming data (NAPI-esque)
  * actual client/server, rather than hard coded files and programs
  * add a `PIPELINE` environment variable to add [instruction pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining) to be used where there is [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading) support
-     * as an instruction is working through the dataset, the next instruction is being simulateously processed
+     * as an instruction is working through the dataset, the next instruction is being simultaneously processed
      * I suspect trailing the leading instruction by a L1 cache line size will be needed, plus to keep locality between those threads
      * insert a leading instruction to the program that uses [`__builtin_prefetch()`/Software Prefetching](https://lwn.net/Articles/255364/)
      * for the non-SMT case, can we use `-fprefetch-loop-arrays` or `__builtin_prefetch()` trivially without complicating the code with a pile of conditionals?
@@ -32,7 +32,7 @@ Can be applied to:
      * `INSTANCES` to have an affinity per core
      * `PIPELINE` to have an affinity where each shared CPU thread is pinned to the same core
  * more codes
-     * need an internal data store to aggreate data into
+     * need an internal data store to aggregate data into
      * to handle packet oriented data, maybe keep the thought of co-routine like behaviour resumption
  * figure out something better that `-m{arch,tune}=native` for `CFLAGS`
  * compile only the ops that will work for the target, for example do not cook `x86_64` on ARM kit
@@ -134,7 +134,7 @@ Notes:
 
 Notes:
 
- * got to solve commutativity as we process the columns in strides and rollup
+ * got to solve commutative as we process the columns in strides and roll up
  * `C<>`/`G[]` can be used read-only (`MAP_PRIVATE`) or read-write
  * `C<>`/`G[]` when backed by a file can be used as a cache
 
