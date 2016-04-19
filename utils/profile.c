@@ -41,6 +41,12 @@ static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
+static void perf_reset(int fd)
+{
+	if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) == -1)
+		err(EX_OSERR, "ioctl(PERF_EVENT_IOC_RESET)");
+}
+
 static int perf_init()
 {
 	struct perf_event_attr pe = {0};
@@ -57,6 +63,8 @@ static int perf_init()
 	int fd = perf_event_open(&pe, 0, -1, -1, 0);
 	if (fd == -1)
 		err(EX_OSERR, "perf_event_open()");
+
+	perf_reset(fd);
 
 	return fd;
 }
@@ -131,6 +139,8 @@ static struct result * measure(struct opcode *opcode, int p)
 	for (int i = 0; i < nbestof; i++)
 		result->bestof[i] = UINT64_MAX;
 
+	perf_reset(p);
+
 	for (unsigned int i = 0; i < cycles; i++) {
 		uint64_t before, after;
 
@@ -144,6 +154,12 @@ static struct result * measure(struct opcode *opcode, int p)
 		perf_pause(p);
 
 		after = perf_measure(p);
+		/* perf counter contention */
+		if (after == UINT64_MAX) {
+			perf_reset(p);
+			i--;
+			continue;
+		}
 
 		/* handle counter wraps (at unknown values) by retrying */
 		if (before > after) {
@@ -152,6 +168,11 @@ static struct result * measure(struct opcode *opcode, int p)
 		}
 
 		uint64_t delta = after - before;
+		/* silly result */
+		if (delta == 0) {
+			i--;
+			continue;
+		}
 
 		if (result->max < delta)
 			result->max = delta;
