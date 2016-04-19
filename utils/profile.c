@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 	int p = perf_init();
 
 	struct result *noop = measure(NULL, p);
-	printf("NOOP perf:\n");
+	printf("noop perf:\n");
 	print(noop);
 
 	printf("\n");
