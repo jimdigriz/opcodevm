@@ -41,12 +41,6 @@ static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
-static void perf_reset(int fd)
-{
-	if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) == -1)
-		err(EX_OSERR, "ioctl(PERF_EVENT_IOC_RESET)");
-}
-
 static int perf_init()
 {
 	struct perf_event_attr pe = {0};
@@ -87,6 +81,12 @@ static uint64_t perf_measure(int fd)
 		return UINT64_MAX;
 
 	return data.value;
+}
+
+static void perf_reset(int fd)
+{
+	if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) == -1)
+		err(EX_OSERR, "ioctl(PERF_EVENT_IOC_RESET)");
 }
 
 static inline void perf_unpause(int fd)
