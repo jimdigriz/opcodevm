@@ -64,8 +64,6 @@ static int perf_init()
 	if (fd == -1)
 		err(EX_OSERR, "perf_event_open()");
 
-	perf_reset(fd);
-
 	return fd;
 }
 
@@ -141,11 +139,9 @@ static struct result * measure(struct opcode *opcode, int p)
 
 	perf_reset(p);
 
+	uint64_t before = 0;
+
 	for (unsigned int i = 0; i < cycles; i++) {
-		uint64_t before, after;
-
-		before = perf_measure(p);
-
 		perf_unpause(p);
 
 		if (opcode)
@@ -153,26 +149,19 @@ static struct result * measure(struct opcode *opcode, int p)
 
 		perf_pause(p);
 
-		after = perf_measure(p);
+		uint64_t after = perf_measure(p);
 		/* perf counter contention */
-		if (after == UINT64_MAX) {
-			perf_reset(p);
-			i--;
-			continue;
-		}
+		if (after == UINT64_MAX)
+			goto reset;
 
-		/* handle counter wraps (at unknown values) by retrying */
-		if (before > after) {
-			i--;
-			continue;
-		}
+		/* handle counter wraps (unknown maximums) */
+		if (before > after)
+			goto retry;
 
 		uint64_t delta = after - before;
 		/* silly result */
-		if (delta == 0) {
-			i--;
-			continue;
-		}
+		if (delta == 0)
+			goto retry;
 
 		if (result->max < delta)
 			result->max = delta;
@@ -193,6 +182,22 @@ static struct result * measure(struct opcode *opcode, int p)
 			result->m = delta;
 			result->s = 0;
 		}
+
+		before = after;
+		continue;
+
+reset:
+#ifndef NDEBUG
+		fprintf(stderr, "reset, ");
+#endif
+		perf_reset(p);
+		after = 0;
+retry:
+#ifndef NDEBUG
+		fprintf(stderr, "retry\n");
+#endif
+		before = after;
+		i--;
 	}
 
 	return result;
