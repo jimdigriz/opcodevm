@@ -22,8 +22,8 @@ SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list
 
 static long cycles = 1000;
 static long nbestof = 3;
-static long align = 0;
 static long length = 0;
+static long align = 0;
 
 struct result {
 	uint64_t	*bestof;
