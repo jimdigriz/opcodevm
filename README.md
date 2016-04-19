@@ -71,7 +71,7 @@ The following [pins the task to the first CPU](http://linux.die.net/man/1/taskse
 
     taskset 1 ./utils/profile code/bswap.so code/bswap/c.so
 
-**N.B.** the 'NOOP' result is to give an indication of the magnitude overhead of the profiling its-self
+**N.B.** the 'noop' result is to give an indication of the magnitude overhead of the profiling its-self
 
 The following environment variables are available:
 
