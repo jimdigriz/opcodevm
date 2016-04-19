@@ -4,8 +4,7 @@ OBJS		:= $(SRCS:%.c=%.o)
 CODESRCS	:= $(wildcard code/*.c)
 CODEOBJS	:= $(CODESRCS:%.c=%.so)
 
-#OPSRCS		:= $(foreach s,$(basename $(CODESRCS)),$(wildcard $(s)/*.c))
-OPSRCS		:= code/bswap/c.c
+OPSRCS		:= $(foreach s,$(basename $(CODESRCS)),$(wildcard $(s)/*.c))
 OPOBJS		:= $(OPSRCS:%.c=%.so)
 
 TARGET		:= opcodevm

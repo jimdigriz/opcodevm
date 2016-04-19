@@ -7,18 +7,18 @@
 #define OPCODE	bswap
 #define IMP	c
 
-#define FUNC(x) static void bswap_##x##_c(size_t *offset, const size_t nrec, void *D)	\
-		{									\
-			uint##x##_t *d = D;						\
-											\
-			for (; *offset < nrec; (*offset)++)				\
-				d[*offset] = bswap_##x(d[*offset]);			\
-		}									\
-		static struct opcode_imp bswap##_##x##_c_imp = {			\
-			.func	= bswap##_##x##_c,					\
-			.cost	= 0,							\
-			.width	= x,							\
-			.name	= "bswap",						\
+#define FUNC(x)	static void bswap_##x##_c(size_t *offset, const size_t nrec, void *D)		\
+		{										\
+			uint##x##_t *d = D;							\
+												\
+			for (; *offset < nrec; (*offset)++)					\
+				d[*offset] = bswap_##x(d[*offset]);				\
+		}										\
+		static struct opcode_imp bswap##_##x##_c_imp = {				\
+			.func	= bswap##_##x##_c,						\
+			.cost	= 0,								\
+			.width	= x,								\
+			.name	= "bswap",							\
 		};
 
 FUNC(16)

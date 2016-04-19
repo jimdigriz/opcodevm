@@ -7,7 +7,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
-#include <assert.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -16,6 +15,7 @@
 #endif
 
 #include "engine.h"
+#include "engine-hooks.h"
 
 cl_context context;
 cl_program program;
@@ -29,17 +29,15 @@ cl_command_queue command_queue;
 				if (cl_ret != CL_SUCCESS) \
 					errx(EX_SOFTWARE, "clSetKernelArg("#x", "#y", "#z") = %d", cl_ret)
 
-static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
-	const size_t global_work_size[] = { data->numrec / 16 };
+static void bswap_32_opencl(size_t *offset, const size_t nrec, void *D) {
+	const size_t global_work_size[] = { nrec / 16 };
 	cl_mem memobj;
 	cl_int cl_ret;
 
-	assert(*offset == 0);
-
-	memobj = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, data->numrec * data->reclen, data->addr, &cl_ret);
+	memobj = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, nrec * 4, D, &cl_ret);
 	CL_CHKERR(clCreateBuffer);
 
-	void *addr = clEnqueueMapBuffer(command_queue, memobj, CL_TRUE, CL_MAP_READ|CL_MAP_WRITE, 0, data->numrec * data->reclen, 0, NULL, NULL, &cl_ret);
+	void *addr = clEnqueueMapBuffer(command_queue, memobj, CL_TRUE, CL_MAP_READ|CL_MAP_WRITE, 0, nrec * 4, 0, NULL, NULL, &cl_ret);
 	CL_CHKERR(clEnqueueMapBuffer);
 
 	CL_KRNSETARG(0, cl_mem, memobj);
@@ -67,6 +65,12 @@ static void bswap_32_opencl(uint64_t *offset, struct data *data, ...) {
 
 	*offset += global_work_size[0] * 16;
 }
+static struct opcode_imp bswap_32_opencl_imp = {
+	.func	= bswap_32_opencl,
+	.cost	= UINT64_MAX,
+	.width	= 32,
+	.name	= "bswap",
+};
 
 static void __attribute__((constructor)) init()
 {
@@ -74,8 +78,6 @@ static void __attribute__((constructor)) init()
 	cl_device_id devices;
 	cl_uint num_platforms, num_devices;
 	cl_int cl_ret;
-
-	assert(opcode[OPCODE(MISC, BSWP)].reg != NULL);
 
 	if (getenv("NOCL"))
 		return;
@@ -124,6 +126,6 @@ static void __attribute__((constructor)) init()
 	command_queue = clCreateCommandQueue(context, devices, 0, &cl_ret);
 	CL_CHKERR(clCreateCommandQueue);
 
-#	define REG(x)	opcode[OPCODE(MISC, BSWP)].reg(bswap_##x##_opencl, x/8);
-	REG(32);
+#	define HOOK(x)	engine_opcode_imp_init(&bswap##_##x##_opencl_imp)
+	HOOK(32);
 }

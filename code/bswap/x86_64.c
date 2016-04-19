@@ -1,10 +1,12 @@
 #include <stdint.h>
-#include <byteswap.h>
-#include <assert.h>
 
 #include "engine.h"
+#include "engine-hooks.h"
 
 #include <x86intrin.h>
+
+#define OPCODE	bswap
+#define IMP	x86_64
 
 #define CONCAT(a,b) CONCAT_(a,b)
 #define CONCAT_(a,b) a##b
@@ -25,15 +27,21 @@
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	static void bswap_##x##_x86_64(uint64_t *offset, struct data *data, ...)		\
-		{											\
-			uint##x##_t *d = data->addr;							\
-													\
-			for (; *offset < data->numrec - (data->numrec % (VEC_LEN/x));			\
-					*offset += VEC_LEN/x)						\
-				VEC_STR((VEC *)&d[*offset],						\
-				VEC_SHF(VEC_LDR((VEC *)&d[*offset]), mask##x));				\
-		}
+#define FUNC(x)	static void bswap_##x##_x86_64(size_t *offset, const size_t nrec, void *D)	\
+		{										\
+			uint##x##_t *d = D;							\
+												\
+			for (; *offset < nrec - (nrec % (VEC_LEN/x));				\
+					*offset += VEC_LEN/x)					\
+				VEC_STR((VEC *)&d[*offset],					\
+				VEC_SHF(VEC_LDR((VEC *)&d[*offset]), mask##x));			\
+		}										\
+		static struct opcode_imp bswap##_##x##_x86_64_imp = {				\
+			.func	= bswap##_##x##_x86_64,						\
+			.cost	= (VEC_LEN/x),							\
+			.width	= x,								\
+			.name	= "bswap",							\
+		};
 
 FUNC(16)
 FUNC(32)
@@ -41,8 +49,6 @@ FUNC(64)
 
 static void __attribute__((constructor)) init()
 {
-	assert(opcode[OPCODE(MISC, BSWP)].reg != NULL);
-
 	if (getenv("NOARCH"))
 		return;
 
@@ -58,8 +64,8 @@ static void __attribute__((constructor)) init()
 	return;
 #endif
 
-#	define REG(x)	opcode[OPCODE(MISC, BSWP)].reg(bswap_##x##_x86_64, x/8);
-	REG(16);
-	REG(32);
-	REG(64);
+#	define HOOK(x)	engine_opcode_imp_init(&bswap##_##x##_x86_64_imp)
+	HOOK(16);
+	HOOK(32);
+	HOOK(64);
 }
