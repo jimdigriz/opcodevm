@@ -67,7 +67,7 @@ The following environment variables are available:
 
 ## Profiling Opcode Implementations
 
-The following [pins the task to the first CPU](http://linux.die.net/man/1/taskset) and prints out the three minimum CPU cycle runs (`PERF_COUNT_HW_REF_CPU_CYCLES`), followed by the average and its [variance](http://www.johndcook.com/blog/standard_deviation/), and finally by the maximum cycle time:
+The following [pins the task to the first CPU](http://linux.die.net/man/1/taskset) and prints out the three minimum [CPU cycle runs (`PERF_COUNT_HW_REF_CPU_CYCLES`)](http://linux.die.net/man/2/perf_event_open), followed by the average and its [variance](http://www.johndcook.com/blog/standard_deviation/), and finally by the maximum cycle time:
 
     taskset 1 ./utils/profile code/bswap.so code/bswap/c.so
 
