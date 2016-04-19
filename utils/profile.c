@@ -125,7 +125,7 @@ static void profile_engine_init() {
 		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
 }
 
-static struct result * measure(struct opcode *opcode, int p)
+static struct result * perf_benchmark(int p, struct opcode *opcode)
 {
 	struct result *result = calloc(1, sizeof(struct result));
 	if (!result)
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 	profile_engine_init();
 	int p = perf_init();
 
-	struct result *noop = measure(NULL, p);
+	struct result *noop = perf_benchmark(p, NULL);
 	printf("noop perf:\n");
 	print(noop);
 
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
 	struct opcode *opcode = SLIST_FIRST(&opcode_list);
 	opcode->profile_init(l2_cache_size / 2, pagesize, 4);
 
-	struct result *op = measure(opcode, p);
+	struct result *op = perf_benchmark(p, opcode);
 	printf("op perf:\n");
 	print(op);
 
