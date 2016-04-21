@@ -103,6 +103,7 @@ static void * engine_instance(void *arg)
 	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
 	const uint64_t stride = (l2_cache_size / width / 2)
 					- ((l2_cache_size / width / 2) % pagesize);
+	assert(stride >= pagesize);
 
 	/* forgive me god, for I have sinned, lolz */
 	uintptr_t **ip;
