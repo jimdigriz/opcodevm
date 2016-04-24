@@ -6,41 +6,129 @@
 #include <dlfcn.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <pthread.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
 #include <sys/queue.h>
+#include <limits.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <stdio.h>
 
 #include "engine.h"
-#include "engine-hooks.h"
 
-SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
+struct engine_instance_info {
+	struct program	*program;
+	unsigned int	instance;
+	pthread_t	thread;
+	pthread_mutex_t	*compile;
+};
 
-static void (*opcode[256])(OPCODE_PARAMS);
-
-#define MAX_PROG_LEN 100
-
-static pthread_mutex_t bytecode_mutex = PTHREAD_MUTEX_INITIALIZER;
-static uintptr_t *bytecode[MAX_PROG_LEN];
+static int (*opcode[256])(OPCODE_PARAMS);
 
 static const char *libs[] = {
 	/* first load the code points (order not important) */
+	"code/list.so",
 	"code/bswap.so",
 
-	/* now the ops (order is important, descending by 'speed') */
-//	"code/bswap/opencl.so",
-//	"code/bswap/x86_64.so",
+	/* now the ops */
 	"code/bswap/c.so",
+	"code/bswap/x86_64.so",
+
 	NULL,
 };
 
 static long instances = 1;
-static long pagesize, l2_cache_size;
+static long pagesize, length;
+
+SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
+
+void engine_opcode_init(struct opcode *opcode)
+{
+	struct opcode *np;
+	SLIST_FOREACH(np, &opcode_list, opcode)
+		if (!strcmp(opcode->name, np->name))
+			errx(EX_SOFTWARE, "duplicate %s opcode calling init()", opcode->name);
+	SLIST_INSERT_HEAD(&opcode_list, opcode, opcode);
+}
+
+void engine_opcode_imp_init(const char *name, const void *args)
+{
+	struct opcode *np;
+	SLIST_FOREACH(np, &opcode_list, opcode) {
+		if (!strcmp(name, np->name)) {
+			np->hook(args);
+			return;
+		}
+	}
+	errx(EX_SOFTWARE, "engine_opcode_imp_init(%s)", name);
+}
+
+void engine_init_columns(struct column *columns)
+{
+	int fd;
+	struct stat stat;
+
+	for (struct column *C = columns; C->ctype != VOID; C++) {
+		switch (C->ctype) {
+		case MEMORY:
+			if (C->width == 0)
+				errx(EX_USAGE, "MEMORY requires width");
+			if (C->nrecs == 0)
+				errx(EX_USAGE, "MEMORY requires nrecs");
+			C->addr = mmap(NULL, C->width / 8 * C->nrecs, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+			if (C->addr == MAP_FAILED)
+				err(EX_OSERR, "mmap()");
+			break;
+		case MAPPED:
+			if (C->width == 0)
+				errx(EX_USAGE, "MAPPED requires width");
+			fd = open(C->mapped.path, O_RDONLY);
+			if (fd == -1)
+				err(EX_NOINPUT, "open('%s')", C->mapped.path);
+			if (fstat(fd, &stat) == -1)
+				err(EX_NOINPUT, "fstat('%s')", C->mapped.path);
+			C->nrecs = (stat.st_size - C->mapped.offset) / C->width * 8;
+			C->addr = mmap(NULL, C->width / 8 * C->nrecs, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, C->mapped.offset);
+			if (C->addr == MAP_FAILED)
+				err(EX_OSERR, "mmap()");
+			close(fd);
+			break;
+		default:
+			errx(EX_USAGE, "unknown column ctype");
+		}
+
+		errno = posix_madvise(C->addr, C->width / 8 * C->nrecs, POSIX_MADV_SEQUENTIAL);
+		if (errno)
+			warn("posix_madvise(POSIX_MADV_SEQUENTIAL)");
+		errno = posix_madvise(C->addr, C->width / 8 * C->nrecs, POSIX_MADV_WILLNEED);
+		if (errno)
+			warn("posix_madvise(POSIX_MADV_WILLNEED)");
+	}
+}
+
+void engine_fini_columns(struct column *columns)
+{
+	for (struct column *C = columns; C->addr; C++)
+		if (munmap(C->addr, C->width / 8 * C->nrecs))
+			err(EX_OSERR, "munmap()");
+}
+
+static void engine_free_columns(struct column *columns, unsigned int o, unsigned int n)
+{
+	for (struct column *C = columns; C->addr; C++) {
+		errno = posix_madvise((uintptr_t *)C->addr + C->width * o, C->width * n, POSIX_MADV_DONTNEED);
+		if (errno)
+			warn("posix_madvise(MADV_DONTNEED)");
+	}
+}
 
 void engine_init() {
 	errno = 0;
+
 	if (getenv("INSTANCES"))
 		instances = strtol(getenv("INSTANCES"), NULL, 10);
 	if (errno == ERANGE || instances < 0)
@@ -54,9 +142,18 @@ void engine_init() {
 	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
-	l2_cache_size = sysconf(_SC_LEVEL2_CACHE_SIZE);
-	if (l2_cache_size == -1)
-		err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
+	if (getenv("LENGTH"))
+		length = strtol(getenv("LENGTH"), NULL, 10);
+	if (errno == ERANGE || length < 0)
+		err(EX_DATAERR, "invalid LENGTH");
+	if (length == 0) {
+		length = sysconf(_SC_LEVEL2_CACHE_SIZE);
+		if (length == -1)
+			err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
+
+		/* default half of L2 cache to not saturate it */
+		length /= 2;
+	}
 
 	for (const char **l = libs; *l; l++) {
 		void *handle = dlopen(*l, RTLD_NOW|RTLD_LOCAL);
@@ -64,77 +161,58 @@ void engine_init() {
 			errx(EX_SOFTWARE, "dlopen(%s): %s\n", *l, dlerror());
 	}
 
+	unsigned int bytecode = 1;	/* 'ret' is at 0 */
 	struct opcode *np;
-	SLIST_FOREACH(np, &opcode_list, opcode)
-		if (!strcmp(np->name, "bswap"))
-			opcode[1] = np->func;
-	assert(opcode[1]);
+	SLIST_FOREACH(np, &opcode_list, opcode) {
+		assert(bytecode < 256);
+		opcode[bytecode] = np->func;
+		np->bytecode = bytecode;
+		bytecode++;
+	}
 }
-
-struct engine_instance_info {
-	struct program	*program;
-	struct data	*D;
-	unsigned int	nD;
-	pthread_t	thread;
-	unsigned int	instance;
-};
 
 static void * engine_instance(void *arg)
 {
 	struct engine_instance_info *eii = arg;
 
-	struct data *d = calloc(eii->nD, sizeof(struct data));
-	if (!d)
-		errx(EX_OSERR, "calloc(d)");
+	struct insn *ip;
+	int jmp;
+	unsigned int o, e;
+#	define CALL(x)	assert(opcode[x]);					\
+			jmp = opcode[x](eii->program->columns, o, e, &ip->ops);	\
+			assert(jmp != 0);						
+	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
+#	define NEXT	ip = &ip[jmp];						\
+			goto *((uintptr_t)&&bytecode0 + ip->code);
 
-	size_t minrec = UINT64_MAX;
-	size_t width = 0;
-	for (unsigned int i = 0; i < eii->nD; i++) {
-		d[i].width	= eii->D[i].width;
-		d[i].type	= eii->D[i].type;
-
-		if (eii->D[i].nrec < minrec)
-			minrec = eii->D[i].nrec;
-
-		width += eii->D[i].width;
+	unsigned int nrecs = UINT_MAX;
+	unsigned int rowwidth = 0;
+	for (const struct column *C = eii->program->columns; C->addr; C++) {
+		if (nrecs > C->nrecs)
+			nrecs = C->nrecs;
+		rowwidth += C->width;
 	}
 
-	size_t nrec, offset;
-	/* we divide by two so not to saturate the cache (pagesize aligned for OpenCL) */
-	const uint64_t stride = (l2_cache_size / width / 2)
-					- ((l2_cache_size / width / 2) % pagesize);
-	assert(stride >= pagesize);
-
-	/* forgive me god, for I have sinned, lolz */
-	uintptr_t **ip;
-#	define CALL(x)	assert(opcode[x]);			\
-			offset = 0;				\
-			opcode[x](&offset, nrec, &d, 0, 0, 0);	\
-			assert(offset == nrec)
-	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
-#	define NEXT goto **ip++
+	const unsigned int stride = (length * 8 / rowwidth - ((length * 8 / rowwidth) % (pagesize * 8 / rowwidth)));
+	assert(stride * rowwidth / 8 >= (unsigned int)pagesize);
 
 	goto compile;
 compile_ret:
 
-	for (uint64_t pos = eii->instance * stride; pos < minrec; pos += instances * stride) {
-		nrec = ((minrec - pos) > stride) ? stride : minrec - pos;
+	for (o = eii->instance * stride; o < nrecs; o += instances * stride) {
+		const unsigned int n = (nrecs - o < stride) ? nrecs - o : stride;
+		e = o + n;
 
-		for (unsigned int i = 0; i < eii->nD; i++) {
-			d[i].addr	= &((uint8_t *)eii->D[i].addr)[pos * eii->D[i].width];
-			d[i].nrec	= nrec;
-		}
-
-		ip = &bytecode[0];
+		ip = &eii->program->insns[0];
+		jmp = 0;
 #		pragma GCC diagnostic push
 #		pragma GCC diagnostic ignored "-Wpedantic"
-		NEXT;
+		NEXT
 #		pragma GCC diagnostic pop
 ret:
-		continue;
+		/* FIXME: combo of o and n might mean we madvise non-full pages */
+		engine_free_columns(eii->program->columns, o, n);
 	}
-
-	free(d);
 
 	return NULL;
 
@@ -145,47 +223,38 @@ bytecode0:
 
 	/* compiler placed here to get access to the cf table from jumptable.h */
 compile:
-	/* lame */
-	if (pthread_mutex_trylock(&bytecode_mutex)) {
-		pthread_mutex_lock(&bytecode_mutex);
+	if (pthread_mutex_trylock(eii->compile)) {
+		pthread_mutex_lock(eii->compile);
 		goto compile_finish;
 	}
-	if (bytecode[0])
+	if (eii->program->insns[0].code)
 		goto compile_finish;
 
-#	pragma GCC diagnostic push
-#	pragma GCC diagnostic ignored "-Wpedantic"
-	opcode[0] = &&bytecode0;
-#	pragma GCC diagnostic pop
-
-	bytecode[0] = cf[1];
-	bytecode[1] = cf[0];
+	for (unsigned int i = 0; i < eii->program->len; i++) {
+		struct opcode *np;
+		SLIST_FOREACH(np, &opcode_list, opcode) {
+			if (!strcmp(eii->program->insns[i].name, np->name)) {
+				eii->program->insns[i].code = cf[np->bytecode];
+				break;
+			}
+		}
+	}
 
 compile_finish:
-	pthread_mutex_unlock(&bytecode_mutex);
+	pthread_mutex_unlock(eii->compile);
 	goto compile_ret;
 }
 
-void engine_run(struct program *program, size_t nD, struct data *D)
+void engine_run(struct program *program)
 {
-	assert(program->loop->len < MAX_PROG_LEN);
-
-	if (strcmp(program->loop->insns[program->loop->len - 1].code, "ret"))
-		errx(EX_USAGE, "program needs to end with 'ret'");
-
-	if (nD == 0)
-		errx(EX_USAGE, "nD needs to be greater than 0");
-
-	for (size_t i = 0; i < nD; i++)
-		if ((uintptr_t)D[i].addr % pagesize)
-			errx(EX_SOFTWARE, "D[%zu] is not page aligned", i);
+	engine_init_columns(program->columns);
 
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
+	pthread_mutex_t compile = PTHREAD_MUTEX_INITIALIZER;
 
 	for (unsigned int i = 0; i < instances; i++) {
 		eii[i].program	= program;
-		eii[i].nD	= nD;
-		eii[i].D	= D;
+		eii[i].compile	= &compile;
 		eii[i].instance	= i;
 
 		if (instances == 1) {
@@ -205,4 +274,6 @@ void engine_run(struct program *program, size_t nD, struct data *D)
 	}
 
 	free(eii);
+
+	engine_fini_columns(program->columns);
 }

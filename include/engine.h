@@ -1,65 +1,89 @@
-#include <stdint.h>
-#include <stddef.h>
 #include <sys/queue.h>
+#include <stddef.h>
 
-#include "store.h"
+#define OPCODE_PARAMS		const struct column *C, unsigned int o, const unsigned int e, const void *ops
+#define MAX_FILEPATH_LENGTH	1000
 
-struct data {
-	void	*addr;
-	size_t	nrec;
-	size_t	width;
-	type	type;
-	char	*path;
-	int	fd;
-};
+#define XENGINE_HOOK(x,y,z)	ENGINE_HOOK(x,y,z)
+#define ENGINE_HOOK(x,y,z)	engine_opcode_imp_init(#x, &x##_##y##_##z##_imp);
 
-#define OPCODE_PARAMS	size_t * offset, const size_t nrec, \
-			struct data *D[], \
-			const size_t dest, const size_t src1, const size_t src2
+typedef enum {
+	BITARRAY,
+	FLOAT,
+	SIGNED,
+	UNSIGNED,
+} datatype_t;
 
-struct opcode_imp {
-	void	(*func)(size_t *offset, const size_t nrec, void *D);
+typedef enum {
+	HOST,
+	LITTLE,
+	BIG,
+} endian_t;
 
-	size_t	cost;
-	size_t	width;
+typedef enum {
+	VOID	= 0,
+	MEMORY,
+	MAPPED,
+	CAST,
+} column_type_t;
 
-	char	*name;
+struct column {
+	void		*addr;
+	unsigned int	width;
+	datatype_t	type;
+	unsigned int	nrecs;
+	column_type_t	ctype;
+	union {
+		struct {
+			endian_t	endian;
+			char		path[MAX_FILEPATH_LENGTH];
+			unsigned int	offset;
+		} mapped;
+		struct {
+			unsigned int	src;
+			unsigned int	offset;
+			unsigned int	stride;
+			int		shift;
+			unsigned int	mask;
+		} cast;
+	};
 };
 
 struct opcode {
 	SLIST_ENTRY(opcode) opcode;
 
-	void	(*func)(OPCODE_PARAMS);
-	void	(*hook)(struct opcode_imp *imp);
+	int		(*func)(OPCODE_PARAMS);
+	void		(*hook)(const void *imp);
 
-	void	(*profile_init)(const size_t, const size_t, const size_t);
-	void	(*profile_fini)();
-	void	(*profile)();
+	void		(*profile_init)(const unsigned int length, const unsigned int width);
+	void		(*profile_fini)();
+	void		(*profile)();
 
-	char	*name;
+	char		*name;
+	unsigned int	bytecode;
 };
 
-struct bytecode {
-	uint8_t		code;
-};
+#include "code/bswap.h"
 
 struct insn {
-	char		*code;
+	ptrdiff_t	code;
 
-	size_t		dest;
-	size_t		src1;
-};
+	union {
+		struct opcode_bswap	bswap;
+	} ops;
 
-struct routine {
-	struct insn	*insns;
-	size_t		len;
+	char		*name;
 };
 
 struct program {
-	struct routine	*begin;
-	struct routine	*loop;
-	struct routine	*end;
+	struct column	*columns;
+	struct insn	*insns;
+	unsigned int	len;
 };
 
+void engine_opcode_init(struct opcode *opcode);
+void engine_opcode_imp_init(const char *name, const void *args);
 void engine_init();
-void engine_run(struct program *program, size_t nD, struct data *D);
+void engine_init_columns(struct column *columns);
+void engine_fini_columns(struct column *columns);
+void engine_run(struct program *program);

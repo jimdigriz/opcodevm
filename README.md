@@ -51,19 +51,19 @@ Simply type:
 The following environment variables are available:
 
  * **`NDEBUG`:** optimised build
- * **`PROFILE`:** include profiling
  * **`NOSTRIP`:** do not strip the binary (default when not using `NDEBUG`)
 
 # Usage
 
-    time env NODISP=1 NOCL=1 ./opcodevm FILE...
+    time env NODISP=1 NOCL=1 ./opcodevm
 
 The following environment variables are available:
 
  * **`NODISP`:** do not display the results
  * **`NOARCH`:** skip arch specific jets
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
- * **`INSTANCES` (default: 1):** engine parallelism, pointless to set above `getconf _NPROCESSORS_ONLN`
+ * **`INSTANCES` (default: 1):** engine parallelism (0 sets to `getconf _NPROCESSORS_ONLN`)
+ * **`LENGTH` (default: half of `_SC_LEVEL2_CACHE_SIZE`):** dataset chunking size
 
 ## Profiling Opcode Implementations
 
@@ -77,7 +77,7 @@ The following environment variables are available:
 
  * **`CYCLES` (default: 1000):** number of runs
  * **`BESTOF` (default: 3):** print best of X minimums
- * **`LENGTH` (default: half of `_SC_LEVEL2_CACHE_SIZE`):** length of dataset to work on
+ * **`LENGTH` (default: half of `_SC_LEVEL2_CACHE_SIZE`):** dataset chunking size
  * **`ALIGN` (default: `_SC_PAGESIZE`):** alignment of dataset
 
 # Sample Data
@@ -88,10 +88,9 @@ The following environment variables are available:
 
 ## HistData Example
 
-The following will output the files `store/{time,bid,ask}` suitable for passing into `opcodevm` as arguments:
-
     mkdir -p store
-    env DUPE=100 ./utils/prepdata.pl DAT_ASCII_EURUSD_T_201603.csv
+    cat DAT_ASCII_EURUSD_T_201603.csv | cut -d, -f2 | perl -ne 'print pack "f>", $_' > store/test
+    for I in $(seq 1 100); do cat store/test >> store/test2; done; mv store/test2 store/test
 
 # Engine
 

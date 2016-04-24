@@ -2,33 +2,31 @@
 #include <byteswap.h>
 
 #include "engine.h"
-#include "engine-hooks.h"
 
 #define OPCODE	bswap
 #define IMP	c
 
-#define FUNC(x)	static void bswap_##x##_c(size_t *offset, const size_t nrec, void *D)		\
-		{										\
-			uint##x##_t *d = D;							\
-												\
-			for (; *offset < nrec; (*offset)++)					\
-				d[*offset] = bswap_##x(d[*offset]);				\
-		}										\
-		static struct opcode_imp bswap##_##x##_c_imp = {				\
-			.func	= bswap##_##x##_c,						\
-			.cost	= 0,								\
-			.width	= x,								\
-			.name	= "bswap",							\
-		};
+#define XFUNC(x,y,z)	FUNC(x,y,z)
+#define FUNC(x,y,z)	static void x##_##y##_##z(OPCODE_IMP_BSWAP_PARAMS)	\
+			{							\
+				uint##y##_t *d = C->addr;			\
+										\
+				for (; *o < e; (*o)++)				\
+					d[*o] = bswap_##y(d[*o]);		\
+			}							\
+			static struct opcode_imp_##x x##_##y##_##z##_imp = {	\
+				.func	= x##_##y##_##z,			\
+				.cost	= 0,					\
+				.width	= y,					\
+			};
 
-FUNC(16)
-FUNC(32)
-FUNC(64)
+XFUNC(OPCODE, 16, IMP)
+XFUNC(OPCODE, 32, IMP)
+XFUNC(OPCODE, 64, IMP)
 
 static void __attribute__((constructor)) init()
 {
-#	define HOOK(x)	engine_opcode_imp_init(&bswap##_##x##_c_imp)
-	HOOK(16);
-	HOOK(32);
-	HOOK(64);
+	XENGINE_HOOK(OPCODE, 16, IMP)
+	XENGINE_HOOK(OPCODE, 32, IMP)
+	XENGINE_HOOK(OPCODE, 64, IMP)
 }

@@ -36,21 +36,21 @@ LDFLAGS	+= -Wl,--gc-sections
 all: $(TARGETS) utils/profile
 
 include/jumptable.h: Makefile
-	@echo '#pragma GCC diagnostic push'				>  $@
-	@echo '#pragma GCC diagnostic ignored "-Wpedantic"'		>> $@
-	@echo								>> $@
+	@echo '#pragma GCC diagnostic push'			>  $@
+	@echo '#pragma GCC diagnostic ignored "-Wpedantic"'	>> $@
+	@echo							>> $@
 	@# code '0' is "ret" and hardcoded in engine.c
-	@$(foreach i,$(shell seq 1 255),printf "bytecode$(i):\n\t\tCALL($(i));\n\t\tNEXT;\n" >> $@;)
-	@echo								>> $@
-	@echo 'static uintptr_t *cf[] = {'				>> $@
-	@$(foreach i,$(shell seq 0 255),printf "\t&&bytecode$(i),\n"	>> $@;)
-	@echo '};'							>> $@
-	@echo								>> $@
-	@echo '#pragma GCC diagnostic pop'				>> $@
+	@$(foreach i,$(shell seq 1 255),printf "bytecode$(i):\n\t\tCALL($(i))\n\t\tNEXT\n" >> $@;)
+	@echo							>> $@
+	@echo 'static const ptrdiff_t cf[] = {'			>> $@
+	@$(foreach i,$(shell seq 0 255),printf "\t(uintptr_t)&&bytecode$(i) - (uintptr_t)&&bytecode0,\n" >> $@;)
+	@echo '};'						>> $@
+	@echo							>> $@
+	@echo '#pragma GCC diagnostic pop'			>> $@
 
 engine.o: include/jumptable.h Makefile
 
-utils/profile: utils/profile.o engine-hooks.o Makefile
+utils/profile: utils/profile.o engine.o Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -lm -o $@ $(filter %.o, $^)
 ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@

@@ -11,19 +11,17 @@
 #include <linux/perf_event.h>
 #include <inttypes.h>
 #include <sys/ioctl.h>
-#include <limits.h>
 #include <stdint.h>
 #include <math.h>
 
 #include "engine.h"
-#include "engine-hooks.h"
-
-SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
 
 static long cycles = 1000;
 static long nbestof = 3;
 static long length = 0;
-static long align = 0;
+static long pagesize;
+
+extern SLIST_HEAD(opcode_list, opcode) opcode_list;
 
 struct result {
 	uint64_t	*bestof;
@@ -130,17 +128,12 @@ static void profile_engine_init() {
 		length /= 2;
 	}
 
-	if (getenv("ALIGN"))
-		align = strtol(getenv("ALIGN"), NULL, 10);
-	if (errno == ERANGE || align < 0)
-		err(EX_DATAERR, "invalid ALIGN");
-	if (align == 0)
-		align = sysconf(_SC_PAGESIZE);
-	if (align == -1)
+	pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
-	if (length % align)
-		errx(EX_DATAERR, "LENGTH %% ALIGN != 0");
+	if (length % pagesize)
+		errx(EX_DATAERR, "LENGTH %% PAGESIZE != 0");
 }
 
 static struct result * perf_benchmark(int p, struct opcode *opcode)
@@ -176,7 +169,7 @@ static struct result * perf_benchmark(int p, struct opcode *opcode)
 		if (before > after)
 			goto retry;
 
-		uint64_t delta = after - before;
+		unsigned int delta = after - before;
 		/* silly result */
 		if (delta == 0)
 			goto retry;
@@ -253,7 +246,7 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	struct opcode *opcode = SLIST_FIRST(&opcode_list);
-	opcode->profile_init(length, align, 4);
+	opcode->profile_init(length, 32);
 
 	struct result *op = perf_benchmark(p, opcode);
 	printf("op perf:\n");

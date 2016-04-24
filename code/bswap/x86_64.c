@@ -1,15 +1,12 @@
 #include <stdint.h>
-
-#include "engine.h"
-#include "engine-hooks.h"
-
+#include <assert.h>
 #include <x86intrin.h>
+
+#include "common.h"
+#include "engine.h"
 
 #define OPCODE	bswap
 #define IMP	x86_64
-
-#define CONCAT(a,b) CONCAT_(a,b)
-#define CONCAT_(a,b) a##b
 
 #if defined(__AVX__)
 #	define VEC_LEN	256
@@ -19,33 +16,35 @@
 #	define VEC_APP
 #endif
 
-#define VEC	CONCAT(__m, CONCAT(VEC_LEN, i))
-#define VEC_LDR	CONCAT(_mm, CONCAT(VEC_APP, CONCAT(_loadu_si,  VEC_LEN)))
-#define VEC_STR	CONCAT(_mm, CONCAT(VEC_APP, CONCAT(_storeu_si, VEC_LEN)))
-#define VEC_SHF	CONCAT(_mm, CONCAT(VEC_APP, _shuffle_epi8))
+#define VEC	XCONCAT(__m, XCONCAT(VEC_LEN, i))
+#define VEC_LDR	XCONCAT(_mm, XCONCAT(VEC_APP, XCONCAT(_loadu_si,  VEC_LEN)))
+#define VEC_STR	XCONCAT(_mm, XCONCAT(VEC_APP, XCONCAT(_storeu_si, VEC_LEN)))
+#define VEC_SHF	XCONCAT(_mm, XCONCAT(VEC_APP, _shuffle_epi8))
 
 static VEC mask16, mask32, mask64;
 
 /* http://stackoverflow.com/a/17509569 */
-#define FUNC(x)	static void bswap_##x##_x86_64(size_t *offset, const size_t nrec, void *D)	\
-		{										\
-			uint##x##_t *d = D;							\
-												\
-			for (; *offset < nrec - (nrec % (VEC_LEN/x));				\
-					*offset += VEC_LEN/x)					\
-				VEC_STR((VEC *)&d[*offset],					\
-				VEC_SHF(VEC_LDR((VEC *)&d[*offset]), mask##x));			\
-		}										\
-		static struct opcode_imp bswap##_##x##_x86_64_imp = {				\
-			.func	= bswap##_##x##_x86_64,						\
-			.cost	= (VEC_LEN/x),							\
-			.width	= x,								\
-			.name	= "bswap",							\
-		};
+#define XFUNC(x,y,z)	FUNC(x,y,z)
+#define FUNC(x,y,z)	static void x##_##y##_##z(OPCODE_IMP_BSWAP_PARAMS)		\
+			{								\
+											\
+				uint##y##_t *d = C->addr;				\
+											\
+				assert((uintptr_t)&d[*o] % (VEC_LEN / 8) == 0);		\
+											\
+				for (; *o < e - (e % (VEC_LEN/y)); *o += VEC_LEN/y)	\
+					VEC_STR((VEC *)&d[*o],				\
+					VEC_SHF(VEC_LDR((VEC *)&d[*o]), mask##y));	\
+			}								\
+			static struct opcode_imp_##x x##_##y##_##z##_imp = {		\
+				.func	= x##_##y##_##z,				\
+				.cost	= (VEC_LEN/y),					\
+				.width	= y,						\
+			};
 
-FUNC(16)
-FUNC(32)
-FUNC(64)
+XFUNC(OPCODE, 16, IMP)
+XFUNC(OPCODE, 32, IMP)
+XFUNC(OPCODE, 64, IMP)
 
 static void __attribute__((constructor)) init()
 {
@@ -64,8 +63,7 @@ static void __attribute__((constructor)) init()
 	return;
 #endif
 
-#	define HOOK(x)	engine_opcode_imp_init(&bswap##_##x##_x86_64_imp)
-	HOOK(16);
-	HOOK(32);
-	HOOK(64);
+	XENGINE_HOOK(OPCODE, 16, IMP)
+	XENGINE_HOOK(OPCODE, 32, IMP)
+	XENGINE_HOOK(OPCODE, 64, IMP)
 }

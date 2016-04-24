@@ -1,81 +1,121 @@
-#include <stddef.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <err.h>
 #include <sysexits.h>
-#include <sys/mman.h>
-#include <string.h>
 
+#include "common.h"
 #include "engine.h"
-#include "engine-hooks.h"
 
 #define OPCODE bswap
 
-void (*bswap16)(size_t *offset, const size_t nrec, void *D);
-void (*bswap32)(size_t *offset, const size_t nrec, void *D);
-void (*bswap64)(size_t *offset, const size_t nrec, void *D);
+static endian_t endian
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	= LITTLE;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	= BIG;
+#else
+#error unknown host endian
+#endif
 
-static void OPCODE(OPCODE_PARAMS)
+#define SLOTS 5
+#define WIDTH2POS(x) ((int)(x/16-1))
+
+struct dispatch {
+	void		(*func)(OPCODE_IMP_BSWAP_PARAMS);
+	unsigned int	cost;
+};
+static struct dispatch D[SLOTS*WIDTH2POS(64) + SLOTS];
+
+static int OPCODE(OPCODE_PARAMS)
 {
-	(void)src1;
-	(void)src2;
+	const struct opcode_bswap *p = ops;
 
-#	define	JUMP(x)	case (x/8): bswap##x(offset, nrec, D[dest]->addr); break;
+	assert(WIDTH2POS(C[p->dest].width) >= WIDTH2POS(16) && WIDTH2POS(C[p->dest].width) <= WIDTH2POS(64));
 
-	switch (D[dest]->width) {
-	JUMP(16)
-	JUMP(32)
-	JUMP(64)
-	default:
-		errx(EX_SOFTWARE, "unable to handle width %zu", D[dest]->width);
+	if (C[p->dest].ctype == MAPPED) {
+		if (p->target == HOST && C[p->dest].mapped.endian == endian)
+			goto exit;
+
+		if (p->target == C[p->dest].mapped.endian)
+			goto exit;
 	}
+
+	unsigned int slot = SLOTS * WIDTH2POS(C[p->dest].width);
+	while (o < e)
+		if (e - o >= D[slot].cost)
+			D[slot++].func(&C[p->dest], &o, e);
+
+exit:
+	return 1;
 }
 
-static void hook(struct opcode_imp *imp)
+static void hook(const void *args)
 {
-#	define HOOK(x) case x: bswap##x = imp->func; break;
+	const struct opcode_imp_bswap *imp = args;
 
-	switch (imp->width) {
-	HOOK(16)
-	HOOK(32)
-	HOOK(64)
-	default:
-		errx(EX_SOFTWARE, "unable to handle width %zu", imp->width);
+	assert(WIDTH2POS(imp->width) >= WIDTH2POS(16) && WIDTH2POS(imp->width) <= WIDTH2POS(64));
+
+	void (*func)(OPCODE_IMP_BSWAP_PARAMS) = imp->func;
+	unsigned int cost = imp->cost;
+
+	void (*ofunc)(OPCODE_IMP_BSWAP_PARAMS);
+	unsigned int ocost;
+
+	const unsigned int offset = SLOTS * WIDTH2POS(imp->width);
+	/* last slot should be null */
+	for (unsigned int i = offset; i < offset + SLOTS - 1; i++) {
+		if (!D[i].func) {
+			D[i].func = func;
+			D[i].cost = cost;
+			break;
+		}
+		else if (D[i].cost < cost) {
+			ofunc = D[i].func;
+			D[i].func = func;
+			func = ofunc;
+
+			ocost = D[i].cost;
+			D[i].cost = cost;
+			cost = ocost;
+		}
 	}
+
+	assert(!D[offset + SLOTS - 1].func);
 }
 
-static struct data *D;
+static struct column *C;
 
-static void profile_init(const size_t length, const size_t alignment, const size_t width)
+static void profile_init(const unsigned int length, const unsigned int width)
 {
-	assert(alignment == 4096);
 	assert(width > 0);
-	assert(alignment % width == 0);
 	assert(length % width == 0);
 
-	D = calloc(1, sizeof(struct data));
-	if (!D)
+	C = calloc(2, sizeof(struct column));
+	if (!C)
 		err(EX_OSERR, "calloc()");
 
-	D[0].addr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	if (!D[0].addr)
-		err(EX_OSERR, "mmap()");
+	C[0].ctype = MEMORY;
+	C[0].width = width;
+	C[0].nrecs = length;
 
-	D[0].width	= width;
-	D[0].nrec	= length / width;
+	engine_init_columns(C);
 }
 
 static void profile_fini()
 {
-	munmap(D[0].addr, D[0].width * D[0].nrec);
-	free(D);
+	engine_fini_columns(C);
+	free(C);
 }
 
 static void profile()
 {
-	size_t offset = 0;
-	OPCODE(&offset, D[0].nrec, &D, 0, 0, 0);
-	assert(offset == D[0].nrec);
+	struct opcode_bswap ops = {
+		.dest	= 0,
+		.target	= HOST,
+	};
+	unsigned int offset = 0;
+	OPCODE(C, offset, C[0].nrecs, &ops);
+	assert(offset == C[0].nrecs);
 }
 
 static struct opcode opcode = {
@@ -84,7 +124,7 @@ static struct opcode opcode = {
 	.profile_init	= profile_init,
 	.profile_fini	= profile_fini,
 	.profile	= profile,
-	.name		= "bswap",
+	.name		= XSTR(OPCODE),
 };
 
 static void __attribute__((constructor)) init()
