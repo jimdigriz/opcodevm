@@ -91,7 +91,7 @@ void engine_init_columns(struct column *columns)
 				err(EX_NOINPUT, "open('%s')", C->mapped.path);
 			if (fstat(fd, &stat) == -1)
 				err(EX_NOINPUT, "fstat('%s')", C->mapped.path);
-			C->nrecs = (stat.st_size - C->mapped.offset) / C->width * 8;
+			C->nrecs = (stat.st_size - C->mapped.offset) * 8 / C->width;
 			C->addr = mmap(NULL, C->width / 8 * C->nrecs, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, C->mapped.offset);
 			if (C->addr == MAP_FAILED)
 				err(EX_OSERR, "mmap()");
