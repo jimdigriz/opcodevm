@@ -126,7 +126,7 @@ static void engine_free_columns(const struct column *columns, const unsigned int
 	for (const struct column *C = columns; C->addr; C++) {
 		errno = posix_madvise((uintptr_t *)C->addr + C->width / 8 * o, C->width / 8 * n, POSIX_MADV_DONTNEED);
 		if (errno)
-			warn("posix_madvise(MADV_DONTNEED)");
+			warn("posix_madvise(POSIX_MADV_DONTNEED)");
 	}
 }
 
