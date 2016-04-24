@@ -112,15 +112,19 @@ void engine_init_columns(struct column *columns)
 
 void engine_fini_columns(struct column *columns)
 {
-	for (struct column *C = columns; C->addr; C++)
+	for (struct column *C = columns; C->addr; C++) {
 		if (munmap(C->addr, C->width / 8 * C->nrecs))
 			err(EX_OSERR, "munmap()");
+		C->addr = NULL;
+		if (C->ctype == MAPPED)
+			C->nrecs = 0;
+	}
 }
 
-static void engine_free_columns(struct column *columns, unsigned int o, unsigned int n)
+static void engine_free_columns(const struct column *columns, const unsigned int o, const unsigned int n)
 {
-	for (struct column *C = columns; C->addr; C++) {
-		errno = posix_madvise((uintptr_t *)C->addr + C->width * o, C->width * n, POSIX_MADV_DONTNEED);
+	for (const struct column *C = columns; C->addr; C++) {
+		errno = posix_madvise((uintptr_t *)C->addr + C->width / 8 * o, C->width / 8 * n, POSIX_MADV_DONTNEED);
 		if (errno)
 			warn("posix_madvise(MADV_DONTNEED)");
 	}
