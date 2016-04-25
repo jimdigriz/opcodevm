@@ -19,12 +19,12 @@ LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
 CFLAGS		+= -march=native -mtune=native
 
-ifdef NDEBUG
-	CFLAGS	+= -O3 -fstack-protector-strong -DNDEBUG
-else
+ifndef NDEBUG
 	CFLAGS	+= -O0 -g3 -fstack-protector-all -fsanitize=address
 	LDFLAGS	+= -fsanitize=address
 	NOSTRIP	:= 1
+else
+	CFLAGS	+= -O3 -fstack-protector-strong -DNDEBUG
 endif
 
 # better stripping
