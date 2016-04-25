@@ -152,7 +152,7 @@ static struct result * perf_benchmark(int p, struct opcode *opcode)
 
 	uint64_t before = 0;
 
-	for (unsigned int i = 0; i < cycles; i++) {
+	for (int i = 0; i < cycles; i++) {
 		perf_unpause(p);
 
 		if (opcode)
@@ -169,7 +169,7 @@ static struct result * perf_benchmark(int p, struct opcode *opcode)
 		if (before > after)
 			goto retry;
 
-		unsigned int delta = after - before;
+		uint64_t delta = after - before;
 		/* silly result */
 		if (delta == 0)
 			goto retry;
