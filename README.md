@@ -20,6 +20,8 @@ Can be applied to:
  * input sources
      * embedded HTTP
      * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
+         * [Cloudflare - Kernel bypass](https://blog.cloudflare.com/kernel-bypass/)
+         * [netmap](https://github.com/luigirizzo/netmap)
      * `NFQUEUE` over `mmap()`
  * think about a slower low latency option suitable for real time streaming data (NAPI-esque)
  * actual client/server, rather than hard coded files and programs
