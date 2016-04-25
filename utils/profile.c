@@ -105,20 +105,20 @@ static void profile_engine_init() {
 	if (getenv("CYCLES"))
 		cycles = strtol(getenv("CYCLES"), NULL, 10);
 	if (errno == ERANGE || cycles < 0)
-		err(EX_DATAERR, "invalid CYCLES");
+		err(EX_USAGE, "invalid CYCLES");
 
 	if (getenv("BESTOF"))
 		nbestof = strtol(getenv("BESTOF"), NULL, 10);
 	if (errno == ERANGE || nbestof < 0)
-		err(EX_DATAERR, "invalid BESTOF");
+		err(EX_USAGE, "invalid BESTOF");
 
 	if (cycles < nbestof)
-		errx(EX_DATAERR, "CYCLES is less than BESTOF");
+		errx(EX_USAGE, "CYCLES is less than BESTOF");
 
 	if (getenv("LENGTH"))
 		length = strtol(getenv("LENGTH"), NULL, 10);
 	if (errno == ERANGE || length < 0)
-		err(EX_DATAERR, "invalid LENGTH");
+		err(EX_USAGE, "invalid LENGTH");
 	if (length == 0) {
 		length = sysconf(_SC_LEVEL2_CACHE_SIZE);
 		if (length == -1)
@@ -133,7 +133,7 @@ static void profile_engine_init() {
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	if (length % pagesize)
-		errx(EX_DATAERR, "LENGTH %% PAGESIZE != 0");
+		errx(EX_USAGE, "LENGTH must be a multiple of PAGESIZE");
 }
 
 static struct result * perf_benchmark(int p, struct opcode *opcode)
