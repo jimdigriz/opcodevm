@@ -80,7 +80,6 @@ The following environment variables are available:
  * **`CYCLES` (default: 1000):** number of runs
  * **`BESTOF` (default: 3):** print best of X minimums
  * **`LENGTH` (default: half of `_SC_LEVEL2_CACHE_SIZE`):** dataset chunking size
- * **`ALIGN` (default: `_SC_PAGESIZE`):** alignment of dataset
 
 # Sample Data
 
