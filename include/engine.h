@@ -1,6 +1,8 @@
 #include <sys/queue.h>
 #include <stddef.h>
 
+#define OPCODES_MAX		16
+
 #define OPCODE_PARAMS		const struct column *C, unsigned int o, const unsigned int e, const void *ops
 #define MAX_FILEPATH_LENGTH	1000
 

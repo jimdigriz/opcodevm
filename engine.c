@@ -27,7 +27,7 @@ struct engine_instance_info {
 	pthread_mutex_t	*compile;
 };
 
-static int (*opcode[256])(OPCODE_PARAMS);
+static int (*opcode[OPCODES_MAX])(OPCODE_PARAMS);
 
 static const char *libs[] = {
 	/* first load the code points (order not important) */
@@ -175,7 +175,7 @@ void engine_init() {
 	unsigned int bytecode = 0;
 	struct opcode *np;
 	SLIST_FOREACH(np, &opcode_list, opcode) {
-		assert(bytecode < 256);
+		assert(bytecode < OPCODES_MAX);
 		opcode[bytecode] = np->func;
 		np->bytecode = bytecode;
 		bytecode++;
