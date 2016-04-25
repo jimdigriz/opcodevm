@@ -130,6 +130,10 @@ static void engine_free_columns(const struct column *columns, const unsigned int
 	}
 }
 
+static struct opcode opcode_ret = {
+	.name	= "ret",
+};
+
 void engine_init() {
 	errno = 0;
 
@@ -165,7 +169,10 @@ void engine_init() {
 			errx(EX_SOFTWARE, "dlopen(%s): %s\n", *l, dlerror());
 	}
 
-	unsigned int bytecode = 1;	/* 'ret' is at 0 */
+	/* dummy 'ret' so slip it in at the top to give it a 0 code */
+	engine_opcode_init(&opcode_ret);
+
+	unsigned int bytecode = 0;
 	struct opcode *np;
 	SLIST_FOREACH(np, &opcode_list, opcode) {
 		assert(bytecode < 256);
@@ -173,6 +180,10 @@ void engine_init() {
 		np->bytecode = bytecode;
 		bytecode++;
 	}
+
+	/* make sure 'ret' has code 0 */
+	assert(!strcmp(SLIST_FIRST(&opcode_list)->name, "ret"));
+	assert(SLIST_FIRST(&opcode_list)->bytecode == 0);
 }
 
 static void * engine_instance(void *arg)
@@ -186,8 +197,11 @@ static void * engine_instance(void *arg)
 			jmp = opcode[x](eii->program->columns, o, e, &ip->ops);	\
 			assert(jmp != 0);						
 	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
-#	define NEXT	ip = &ip[jmp];						\
-			goto *((uintptr_t)&&bytecode0 + ip->code);
+#ifndef NDEBUG
+#	define NEXT	ip = &ip[jmp]; goto *((uintptr_t)&&bytecode0 + ip->code);
+#else
+#	define NEXT	ip = &ip[jmp]; goto *ip->code;
+#endif
 
 	unsigned int nrecs = UINT_MAX;
 	unsigned int rowwidth = 0;
@@ -239,7 +253,14 @@ compile:
 		struct opcode *np;
 		SLIST_FOREACH(np, &opcode_list, opcode) {
 			if (!strcmp(eii->program->insns[i].name, np->name)) {
+#ifndef NDEBUG
 				eii->program->insns[i].code = cf[np->bytecode];
+#else
+#				pragma GCC diagnostic push
+#				pragma GCC diagnostic ignored "-Wpedantic"
+				eii->program->insns[i].code = (uintptr_t)&&bytecode0 + cf[np->bytecode];
+#				pragma GCC diagnostic pop
+#endif
 				break;
 			}
 		}
