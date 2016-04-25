@@ -231,6 +231,7 @@ compile:
 		pthread_mutex_lock(eii->compile);
 		goto compile_finish;
 	}
+	assert(strcmp(eii->program->insns[0].name, "ret"));
 	if (eii->program->insns[0].code)
 		goto compile_finish;
 
