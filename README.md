@@ -86,6 +86,7 @@ The following environment variables are available:
  * [HistData](http://www.histdata.com/download-free-forex-data/) ([format](http://www.histdata.com/f-a-q/data-files-detailed-specification/))
  * [GAIN Capital](http://ratedata.gaincapital.com/)
  * [Pepperstone](https://pepperstone.com/en/client-resources/historical-tick-data)
+ * [Opendata CERN](http://opendata.cern.ch/research/CMS)
 
 ## HistData Example
 
