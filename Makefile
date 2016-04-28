@@ -41,10 +41,10 @@ include/jumptable.h: include/engine.h Makefile
 	@echo '#pragma GCC diagnostic ignored "-Wpedantic"'	>> $@
 	@echo							>> $@
 	@# code '0' is "ret" and hardcoded in engine.c
-	@$(foreach i,$(shell seq 1 $(OPCODES_MAX)),printf "bytecode$(i):\n\t\tCALL($(i))\n\t\tNEXT\n" >> $@;)
+	@$(foreach i,$(shell seq 1 $$(($(OPCODES_MAX)-1))),printf "bytecode$(i):\n\t\tCALL($(i))\n\t\tNEXT\n" >> $@;)
 	@echo							>> $@
 	@echo 'static const ptrdiff_t cf[] = {'			>> $@
-	@$(foreach i,$(shell seq 0 $(OPCODES_MAX)),printf "\t(uintptr_t)&&bytecode$(i) - (uintptr_t)&&bytecode0,\n" >> $@;)
+	@$(foreach i,$(shell seq 0 $$(($(OPCODES_MAX)-1))),printf "\t(uintptr_t)&&bytecode$(i) - (uintptr_t)&&bytecode0,\n" >> $@;)
 	@echo '};'						>> $@
 	@echo							>> $@
 	@echo '#pragma GCC diagnostic pop'			>> $@
