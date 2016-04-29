@@ -13,7 +13,7 @@ TARGETS		:= $(TARGET) $(CODEOBJS) $(OPOBJS)
 VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet || printf -- -dirty)
 
 CPPFLAGS	+= -MD -MP -Iinclude -I.
-CFLAGS		+= -std=c11 -D_DEFAULT_SOURCE -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -fPIC -pthread -DVERSION="\"$(VERSION)\""
+CFLAGS		+= -std=c11 -D_DEFAULT_SOURCE -D_FILE_OFFSET_BITS=64 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -fPIC -pthread -DVERSION="\"$(VERSION)\""
 LDFLAGS		+= -rdynamic -lpthread -pthread -lasan -lm
 LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
