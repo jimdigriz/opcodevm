@@ -18,8 +18,7 @@ Can be applied to:
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
  * implement scatter gather vector support (needed for datagram payloads)
  * [10 SQL Tricks That You Didn’t Think Were Possible](https://blog.jooq.org/2016/04/25/10-sql-tricks-that-you-didnt-think-were-possible/) - operations that I need to be able to do
- * 32 bit support
-     * use `mmap2()`/paging for accessing files, though 4bn records would still be a limit
+ * 32 bit support, though 4bn records would still be a limit
  * input sources
      * embedded HTTP
      * [netmap](https://github.com/luigirizzo/netmap) and [Partial kernel bypass merged into netmap master](https://blog.cloudflare.com/partial-kernel-bypass-merged-netmap/)
