@@ -44,7 +44,7 @@ static int perf_init()
 {
 	struct perf_event_attr pe = {0};
 
-	pe.size = sizeof(struct perf_event_attr);
+	pe.size = sizeof(pe);
 	pe.disabled = 1;
 	pe.exclude_kernel = 1;
 	pe.exclude_hv = 1;
@@ -73,7 +73,7 @@ static uint64_t perf_measure(int fd)
 		uint64_t	time_running;
 	} data;
 
-	if (read(fd, &data, sizeof(struct read_format)) == -1)
+	if (read(fd, &data, sizeof(data) == -1)
 		err(EX_SOFTWARE, "read(perf->fd)");
 
 	if (data.time_enabled != data.time_running)
