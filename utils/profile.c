@@ -73,7 +73,7 @@ static uint64_t perf_measure(int fd)
 		uint64_t	time_running;
 	} data;
 
-	if (read(fd, &data, sizeof(data) == -1)
+	if (read(fd, &data, sizeof(data)) == -1)
 		err(EX_SOFTWARE, "read(perf->fd)");
 
 	if (data.time_enabled != data.time_running)
