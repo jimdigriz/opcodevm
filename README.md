@@ -18,13 +18,11 @@ Can be applied to:
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
  * implement scatter gather vector support (needed for datagram payloads)
  * [10 SQL Tricks That You Didn’t Think Were Possible](https://blog.jooq.org/2016/04/25/10-sql-tricks-that-you-didnt-think-were-possible/) - operations that I need to be able to do
- * use `mmap2()`/`-D_FILE_OFFSET_BITS=64`/paging for accessing large files on 32bit systems, though 4bn records would still be a limit
+ * 32 bit support
+     * use `mmap2()`/`-D_FILE_OFFSET_BITS=64`/paging for accessing large files on 32bit systems, though 4bn records would still be a limit
  * input sources
      * embedded HTTP
-     * [`AF_PACKET` with `mmap()`](https://www.kernel.org/doc/Documentation/networking/packet_mmap.txt)
-         * [Cloudflare - Kernel bypass](https://blog.cloudflare.com/kernel-bypass/)
-         * [netmap](https://github.com/luigirizzo/netmap)
-     * `NFQUEUE` over `mmap()`
+     * [netmap](https://github.com/luigirizzo/netmap) and [Partial kernel bypass merged into netmap master](https://blog.cloudflare.com/partial-kernel-bypass-merged-netmap/)
  * think about a slower low latency option suitable for real time streaming data (NAPI-esque)
  * actual client/server, rather than hard coded files and programs
  * add a `PIPELINE` environment variable to add [instruction pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining) to be used where there is [SMT](https://en.wikipedia.org/wiki/Simultaneous_multithreading) support
