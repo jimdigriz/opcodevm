@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <err.h>
 #include <inttypes.h>
@@ -191,6 +192,7 @@ compile:
 
 void engine_run(struct program *program)
 {
+	cpu_set_t cpuset;
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 	if (!eii)
 		err(EX_OSERR, "calloc()");
@@ -228,6 +230,12 @@ void engine_run(struct program *program)
 
 		if (pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]))
 			err(EX_OSERR, "pthread_create()");
+		if (instances > 1) {
+			CPU_ZERO(&cpuset);
+			CPU_SET(i, &cpuset);
+			if (pthread_setaffinity_np(eii[i].thread, sizeof(cpuset), &cpuset))
+				warn("pthread_setaffinity_np()");
+		}
 	}
 
 	for (int i = 0; i < instances; i++) {
