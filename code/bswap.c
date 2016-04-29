@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <err.h>
 #include <sysexits.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "engine.h"
@@ -32,18 +33,19 @@ static int OPCODE(OPCODE_PARAMS)
 
 	assert(WIDTH2POS(C[p->dest].width) >= WIDTH2POS(16) && WIDTH2POS(C[p->dest].width) <= WIDTH2POS(64));
 
-	if (C[p->dest].ctype == MAPPED) {
-		if (p->target == HOST && C[p->dest].mapped.endian == endian)
+	if (C[p->dest].ctype == BACKED) {
+		if (p->target == HOST && C[p->dest].backed.endian == endian)
 			goto exit;
 
-		if (p->target == C[p->dest].mapped.endian)
+		if (p->target == C[p->dest].backed.endian)
 			goto exit;
 	}
 
 	unsigned int slot = SLOTS * WIDTH2POS(C[p->dest].width);
-	while (o < e)
-		if (e - o >= D[slot].cost)
-			D[slot++].func(&C[p->dest], &o, e);
+	unsigned int o = 0;
+	while (o < n)
+		if (n - o >= D[slot].cost)
+			D[slot++].func(&C[p->dest], n, &o);
 
 exit:
 	return 1;
@@ -65,8 +67,7 @@ static void hook(const void *args)
 	/* last slot should be null */
 	for (unsigned int i = offset; i < offset + SLOTS - 1; i++) {
 		if (!D[i].func) {
-			D[i].func = func;
-			D[i].cost = cost;
+			D[i].func = func;			D[i].cost = cost;
 			break;
 		}
 		else if (D[i].cost < cost) {
@@ -84,8 +85,9 @@ static void hook(const void *args)
 }
 
 static struct column *C;
+static unsigned int nrecs;
 
-static void profile_init(const unsigned int length, const unsigned int width)
+static void profile_init(const unsigned int length, const unsigned int width, unsigned int * const offset, pthread_mutex_t * const offsetlk)
 {
 	assert(width > 0);
 	assert(length % width == 0);
@@ -94,16 +96,18 @@ static void profile_init(const unsigned int length, const unsigned int width)
 	if (!C)
 		err(EX_OSERR, "calloc()");
 
-	C[0].ctype = MEMORY;
+	C[0].ctype = ZERO;
 	C[0].width = width;
-	C[0].nrecs = length;
 
-	engine_init_columns(C);
+	column_init(C);
+	nrecs = column_get(C, offset, offsetlk, length);
 }
 
 static void profile_fini()
 {
-	engine_fini_columns(C);
+	column_put(C);
+	column_fini(C);
+	nrecs = 0;
 	free(C);
 }
 
@@ -113,9 +117,7 @@ static void profile()
 		.dest	= 0,
 		.target	= HOST,
 	};
-	unsigned int offset = 0;
-	OPCODE(C, offset, C[0].nrecs, &ops);
-	assert(offset == C[0].nrecs);
+	OPCODE(C, nrecs, &ops);
 }
 
 static struct opcode opcode = {

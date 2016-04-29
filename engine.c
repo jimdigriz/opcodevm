@@ -12,19 +12,22 @@
 #include <sys/queue.h>
 #include <limits.h>
 #include <pthread.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
 
 #include "engine.h"
 
+typedef struct {
+	unsigned int	offset;
+	pthread_mutex_t	offsetlk;
+} offset_t;
+
 struct engine_instance_info {
 	struct program	*program;
-	unsigned int	instance;
+	struct column	*columns;
+	unsigned int	stride;
+	offset_t	*offset;
 	pthread_t	thread;
-	pthread_mutex_t	*compile;
 };
 
 static int (*opcode[OPCODES_MAX])(OPCODE_PARAMS);
@@ -67,69 +70,6 @@ void engine_opcode_imp_init(const char *name, const void *args)
 	errx(EX_SOFTWARE, "engine_opcode_imp_init(%s)", name);
 }
 
-void engine_init_columns(struct column *columns)
-{
-	int fd;
-	struct stat stat;
-
-	for (struct column *C = columns; C->ctype != VOID; C++) {
-		switch (C->ctype) {
-		case MEMORY:
-			if (C->width == 0)
-				errx(EX_USAGE, "MEMORY requires width");
-			if (C->nrecs == 0)
-				errx(EX_USAGE, "MEMORY requires nrecs");
-			C->addr = mmap(NULL, C->width / 8 * C->nrecs, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-			if (C->addr == MAP_FAILED)
-				err(EX_OSERR, "mmap()");
-			break;
-		case MAPPED:
-			if (C->width == 0)
-				errx(EX_USAGE, "MAPPED requires width");
-			fd = open(C->mapped.path, O_RDONLY);
-			if (fd == -1)
-				err(EX_NOINPUT, "open('%s')", C->mapped.path);
-			if (fstat(fd, &stat) == -1)
-				err(EX_NOINPUT, "fstat('%s')", C->mapped.path);
-			C->nrecs = (stat.st_size - C->mapped.offset) * 8 / C->width;
-			C->addr = mmap(NULL, C->width / 8 * C->nrecs, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, C->mapped.offset);
-			if (C->addr == MAP_FAILED)
-				err(EX_OSERR, "mmap()");
-			close(fd);
-			break;
-		default:
-			errx(EX_USAGE, "unknown column ctype");
-		}
-
-		errno = posix_madvise(C->addr, C->width / 8 * C->nrecs, POSIX_MADV_SEQUENTIAL);
-		if (errno)
-			warn("posix_madvise(POSIX_MADV_SEQUENTIAL)");
-		errno = posix_madvise(C->addr, C->width / 8 * C->nrecs, POSIX_MADV_WILLNEED);
-		if (errno)
-			warn("posix_madvise(POSIX_MADV_WILLNEED)");
-	}
-}
-
-void engine_fini_columns(struct column *columns)
-{
-	for (struct column *C = columns; C->addr; C++) {
-		if (munmap(C->addr, C->width / 8 * C->nrecs))
-			err(EX_OSERR, "munmap()");
-		C->addr = NULL;
-		if (C->ctype == MAPPED)
-			C->nrecs = 0;
-	}
-}
-
-static void engine_free_columns(const struct column *columns, const unsigned int o, const unsigned int n)
-{
-	for (const struct column *C = columns; C->addr; C++) {
-		errno = posix_madvise((uintptr_t *)C->addr + C->width / 8 * o, C->width / 8 * n, POSIX_MADV_DONTNEED);
-		if (errno)
-			warn("posix_madvise(POSIX_MADV_DONTNEED)");
-	}
-}
-
 static struct opcode opcode_ret = {
 	.name	= "ret",
 };
@@ -140,7 +80,7 @@ void engine_init() {
 	if (getenv("INSTANCES"))
 		instances = strtol(getenv("INSTANCES"), NULL, 10);
 	if (errno == ERANGE || instances < 0)
-		err(EX_DATAERR, "invalid INSTANCES");
+		err(EX_USAGE, "invalid INSTANCES");
 	if (instances == 0)
 		instances = sysconf(_SC_NPROCESSORS_ONLN);
 	if (instances == -1)
@@ -153,7 +93,7 @@ void engine_init() {
 	if (getenv("LENGTH"))
 		length = strtol(getenv("LENGTH"), NULL, 10);
 	if (errno == ERANGE || length < 0)
-		err(EX_DATAERR, "invalid LENGTH");
+		err(EX_USAGE, "invalid LENGTH");
 	if (length == 0) {
 		length = sysconf(_SC_LEVEL2_CACHE_SIZE);
 		if (length == -1)
@@ -192,34 +132,22 @@ static void * engine_instance(void *arg)
 
 	struct insn *ip;
 	int jmp;
-	unsigned int o, e;
+	unsigned int n;
 #	define CALL(x)	assert(opcode[x]);					\
-			jmp = opcode[x](eii->program->columns, o, e, &ip->ops);	\
+			jmp = opcode[x](eii->columns, n, &ip->ops);	\
 			assert(jmp != 0);						
 	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
-#ifndef NDEBUG
-#	define NEXT	ip = &ip[jmp]; goto *((uintptr_t)&&bytecode0 + ip->code);
-#else
 #	define NEXT	ip = &ip[jmp]; goto *ip->code;
-#endif
-
-	unsigned int nrecs = UINT_MAX;
-	unsigned int rowwidth = 0;
-	for (const struct column *C = eii->program->columns; C->addr; C++) {
-		if (nrecs > C->nrecs)
-			nrecs = C->nrecs;
-		rowwidth += C->width;
-	}
-
-	const unsigned int stride = (length * 8 / rowwidth - ((length * 8 / rowwidth) % (pagesize * 8 / rowwidth)));
-	assert(stride * rowwidth / 8 >= (unsigned int)pagesize);
 
 	goto compile;
-compile_ret:
+compiled_already:
 
-	for (o = eii->instance * stride; o < nrecs; o += instances * stride) {
-		const unsigned int n = (nrecs - o < stride) ? nrecs - o : stride;
-		e = o + n;
+	while (1) {
+		n = column_get(eii->columns, &eii->offset->offset, &eii->offset->offsetlk, eii->stride);
+		if (n == 0) {
+			column_put(eii->columns);
+			break;
+		}
 
 		ip = &eii->program->insns[0];
 		jmp = 0;
@@ -228,8 +156,7 @@ compile_ret:
 		NEXT
 #		pragma GCC diagnostic pop
 ret:
-		/* FIXME: combo of o and n might mean we madvise non-full pages */
-		engine_free_columns(eii->program->columns, o, n);
+		column_put(eii->columns);
 	}
 
 	return NULL;
@@ -241,65 +168,79 @@ bytecode0:
 
 	/* compiler placed here to get access to the cf table from jumptable.h */
 compile:
-	if (pthread_mutex_trylock(eii->compile)) {
-		pthread_mutex_lock(eii->compile);
-		goto compile_finish;
-	}
-	assert(strcmp(eii->program->insns[0].name, "ret"));
 	if (eii->program->insns[0].code)
-		goto compile_finish;
+		goto compiled_already;
+
+	assert(strcmp(eii->program->insns[0].name, "ret"));
 
 	for (unsigned int i = 0; i < eii->program->len; i++) {
 		struct opcode *np;
 		SLIST_FOREACH(np, &opcode_list, opcode) {
 			if (!strcmp(eii->program->insns[i].name, np->name)) {
-#ifndef NDEBUG
-				eii->program->insns[i].code = cf[np->bytecode];
-#else
 #				pragma GCC diagnostic push
 #				pragma GCC diagnostic ignored "-Wpedantic"
 				eii->program->insns[i].code = (uintptr_t)&&bytecode0 + cf[np->bytecode];
 #				pragma GCC diagnostic pop
-#endif
 				break;
 			}
 		}
 	}
 
-compile_finish:
-	pthread_mutex_unlock(eii->compile);
-	goto compile_ret;
+	return NULL;
 }
 
 void engine_run(struct program *program)
 {
-	engine_init_columns(program->columns);
-
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
-	pthread_mutex_t compile = PTHREAD_MUTEX_INITIALIZER;
+	if (!eii)
+		err(EX_OSERR, "calloc()");
 
-	for (unsigned int i = 0; i < instances; i++) {
+	column_init(program->columns);
+
+	unsigned int nC = 1;	/* we have a VOID terminator */
+	unsigned int rowwidth = 0;
+	for (struct column *C = program->columns; C->ctype != VOID; C++) {
+		nC++;
+		rowwidth += C->width;
+	}
+	const unsigned int stride = length * 8 / rowwidth;
+	assert(stride > 100);
+
+	offset_t *offset = malloc(sizeof(offset_t));
+	if (!offset)
+		err(EX_OSERR, "malloc()");
+	offset->offset = 0;
+	pthread_mutex_init(&offset->offsetlk, NULL);
+
+	for (int i = 0; i < instances; i++) {
+		eii[i].offset	= offset;
 		eii[i].program	= program;
-		eii[i].compile	= &compile;
-		eii[i].instance	= i;
+		eii[i].stride	= stride;
 
-		if (instances == 1) {
+		eii[i].columns	= malloc(nC * sizeof(struct column));
+		if (!eii[i].columns)
+			err(EX_OSERR, "malloc()");
+		memcpy(eii[i].columns, program->columns, nC * sizeof(struct column));
+
+		/* program compile run */
+		if (i == 0)
 			engine_instance(&eii[i]);
-		} else {
-			if (pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]))
-				err(EX_OSERR, "pthread_create()");
-		}
+
+		if (pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]))
+			err(EX_OSERR, "pthread_create()");
 	}
 
-	if (instances > 1) {
-		for (int i = 0; i < instances; i++) {
-			errno =  pthread_join(eii[i].thread, NULL);
-			if (errno)
-				err(EX_OSERR, "pthread_join()");
-		}
+	for (int i = 0; i < instances; i++) {
+		errno =  pthread_join(eii[i].thread, NULL);
+		if (errno)
+			err(EX_OSERR, "pthread_join()");
+
+		free(eii[i].columns);
 	}
 
 	free(eii);
+	pthread_mutex_destroy(&offset->offsetlk);
+	free(offset);
 
-	engine_fini_columns(program->columns);
+	column_fini(program->columns);
 }

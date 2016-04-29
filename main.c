@@ -3,10 +3,10 @@
 
 static struct column columns[] = {
 	{
-		.ctype	= MAPPED,
+		.ctype	= BACKED,
 		.width	= 32,
 		.type	= FLOAT,
-		.mapped	= {
+		.backed	= {
 			.path	= "store/test",
 			.endian	= BIG,
 		},
@@ -38,8 +38,8 @@ static struct program program = {
 
 int main(int argc, char **argv)
 {
-	(void)(argc);
-	(void)(argv);
+	(void)argc;
+	(void)argv;
 
 	engine_init();
 	engine_run(&program);

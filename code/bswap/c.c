@@ -11,7 +11,7 @@
 			{							\
 				uint##y##_t *d = C->addr;			\
 										\
-				for (; *o < e; (*o)++)				\
+				for (; *o < n; (*o)++)				\
 					d[*o] = bswap_##y(d[*o]);		\
 			}							\
 			static struct opcode_imp_##x x##_##y##_##z##_imp = {	\

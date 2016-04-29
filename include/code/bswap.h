@@ -3,7 +3,7 @@ struct opcode_bswap {
 	endian_t	target;
 };
 
-#define OPCODE_IMP_BSWAP_PARAMS	const struct column *C, unsigned int * const o, const unsigned int e
+#define OPCODE_IMP_BSWAP_PARAMS	const struct column *C, const unsigned int n, unsigned int * const o
 
 struct opcode_imp_bswap {
 	void		(*func)(OPCODE_IMP_BSWAP_PARAMS);

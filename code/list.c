@@ -15,7 +15,7 @@ static int OPCODE(OPCODE_PARAMS)
 	if (getenv("NODISP"))
 		goto exit;
 
-	for (; o < e; o++) {
+	for (unsigned int o = 0; o < n; o++) {
 		for (unsigned int i = 0; C[i].addr; i++) {
 			char *comma = (i == 0) ? "" : ",";
 

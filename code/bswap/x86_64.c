@@ -32,7 +32,7 @@ static VEC mask16, mask32, mask64;
 											\
 				assert((uintptr_t)&d[*o] % (VEC_LEN / 8) == 0);		\
 											\
-				for (; *o < e - (e % (VEC_LEN/y)); *o += VEC_LEN/y)	\
+				for (; *o < n - (n % (VEC_LEN/y)); *o += VEC_LEN/y)	\
 					VEC_STR((VEC *)&d[*o],				\
 					VEC_SHF(VEC_LDR((VEC *)&d[*o]), mask##y));	\
 			}								\

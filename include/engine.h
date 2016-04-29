@@ -1,55 +1,14 @@
 #include <sys/queue.h>
 #include <stddef.h>
 
+#include "column.h"
+
 #define OPCODES_MAX		16
 
-#define OPCODE_PARAMS		const struct column *C, unsigned int o, const unsigned int e, const void *ops
-#define MAX_FILEPATH_LENGTH	1000
+#define OPCODE_PARAMS		const struct column *C, const unsigned int n, const void *ops
 
 #define XENGINE_HOOK(x,y,z)	ENGINE_HOOK(x,y,z)
 #define ENGINE_HOOK(x,y,z)	engine_opcode_imp_init(#x, &x##_##y##_##z##_imp);
-
-typedef enum {
-	BITARRAY,
-	FLOAT,
-	SIGNED,
-	UNSIGNED,
-} datatype_t;
-
-typedef enum {
-	HOST,
-	LITTLE,
-	BIG,
-} endian_t;
-
-typedef enum {
-	VOID	= 0,
-	MEMORY,
-	MAPPED,
-	CAST,
-} column_type_t;
-
-struct column {
-	void		*addr;
-	unsigned int	width;
-	datatype_t	type;
-	unsigned int	nrecs;
-	column_type_t	ctype;
-	union {
-		struct {
-			endian_t	endian;
-			char		path[MAX_FILEPATH_LENGTH];
-			unsigned int	offset;
-		} mapped;
-		struct {
-			unsigned int	src;
-			unsigned int	offset;
-			unsigned int	stride;
-			int		shift;
-			unsigned int	mask;
-		} cast;
-	};
-};
 
 struct opcode {
 	SLIST_ENTRY(opcode) opcode;
@@ -57,7 +16,7 @@ struct opcode {
 	int		(*func)(OPCODE_PARAMS);
 	void		(*hook)(const void *imp);
 
-	void		(*profile_init)(const unsigned int length, const unsigned int width);
+	void		(*profile_init)(const unsigned int length, const unsigned int width, unsigned int * const offset, pthread_mutex_t * const offsetlk);
 	void		(*profile_fini)();
 	void		(*profile)();
 

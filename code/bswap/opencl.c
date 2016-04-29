@@ -33,14 +33,14 @@ cl_command_queue command_queue;
 					errx(EX_SOFTWARE, "clSetKernelArg("#x", "#y", "#z") = %d", cl_ret)
 
 static void bswap_32_opencl(OPCODE_IMP_BSWAP_PARAMS) {
-	const size_t global_work_size[] = { (e - *o) / 16 };
+	const size_t global_work_size[] = { (n - *o) / 16 };
 	cl_mem memobj;
 	cl_int cl_ret;
 
-	memobj = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, (e - *o) * 4, C->addr, &cl_ret);
+	memobj = clCreateBuffer(context, CL_MEM_READ_WRITE|CL_MEM_USE_HOST_PTR, (n - *o) * 4, C->addr, &cl_ret);
 	CL_CHKERR(clCreateBuffer);
 
-	void *addr = clEnqueueMapBuffer(command_queue, memobj, CL_TRUE, CL_MAP_READ|CL_MAP_WRITE, 0, (e - *o) * 4, 0, NULL, NULL, &cl_ret);
+	void *addr = clEnqueueMapBuffer(command_queue, memobj, CL_TRUE, CL_MAP_READ|CL_MAP_WRITE, 0, (n - *o) * 4, 0, NULL, NULL, &cl_ret);
 	CL_CHKERR(clEnqueueMapBuffer);
 
 	CL_KRNSETARG(0, cl_mem, memobj);
