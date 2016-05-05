@@ -63,9 +63,6 @@ ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif
 
-%.lst: %.c Makefile
-	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -fverbose-asm -Wa,-adhln $< > $@
-
 %.o: %.c Makefile
 	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
@@ -74,6 +71,9 @@ endif
 ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
 endif
+
+%.lst: %.c Makefile
+	$(CROSS_COMPILE)$(CC) $(CPPFLAGS) $(CFLAGS) -c -g3 -fverbose-asm -Wa,-adhln $< > $@
 
 clean:
 	rm -rf $(SRCS:%.c=%.d) $(SRCS:%.c=%.lst) $(CODESRCS:%.c=%.d) $(OPSRCS:%.c=%.d) $(TARGETS) $(OBJS) utils/profile utils/profile.o include/jumptable.h
