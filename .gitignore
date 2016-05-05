@@ -9,8 +9,9 @@ utils/profile
 store
 
 gmon.out
-*.[do]
+*.[dos]
 *.so
+*.lst
 *.gcda
 *.gcno
 *.mopt
