@@ -20,7 +20,7 @@ LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 CFLAGS		+= -march=native -mtune=native
 
 ifndef NDEBUG
-	CFLAGS	+= -O0 -g3 -fstack-protector-all -fsanitize=address
+	CFLAGS	+= -O0 -ftree-vectorize -g3 -fstack-protector-all -fsanitize=address
 	LDFLAGS	+= -fsanitize=address
 	NOSTRIP	:= 1
 else
