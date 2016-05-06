@@ -2,6 +2,8 @@
 #include <err.h>
 #include <sysexits.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "common.h"
 #include "engine.h"
@@ -30,6 +32,28 @@ static int OPCODE(OPCODE_PARAMS)
 					break;
 				default:
 					errx(EX_SOFTWARE, "FLOAT%d\n", C[i].width);
+				}
+				break;
+			case SIGNED:
+#define CASE_SIGNED(x)		case x: printf("%s%" PRIi##x, comma, ((int##x##_t *)C[i].addr)[o]); break;
+				switch (C[i].width) {
+				CASE_SIGNED(8)
+				CASE_SIGNED(16)
+				CASE_SIGNED(32)
+				CASE_SIGNED(64)
+				default:
+					errx(EX_SOFTWARE, "SIGNED%d\n", C[i].width);
+				}
+				break;
+			case UNSIGNED:
+#define CASE_UNSIGNED(x)	case x: printf("%s%" PRIu##x, comma, ((uint##x##_t *)C[i].addr)[o]); break;
+				switch (C[i].width) {
+				CASE_UNSIGNED(8)
+				CASE_UNSIGNED(16)
+				CASE_UNSIGNED(32)
+				CASE_UNSIGNED(64)
+				default:
+					errx(EX_SOFTWARE, "UNSIGNED%d\n", C[i].width);
 				}
 				break;
 			default:
