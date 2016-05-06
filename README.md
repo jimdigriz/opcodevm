@@ -52,6 +52,7 @@ Simply type:
 The following environment variables are available:
 
  * **`NDEBUG`:** optimised build
+ * **`NPROT`:** disable address protection, helpful for ASM reading
  * **`NOSTRIP`:** do not strip the binary (default when not using `NDEBUG`)
 
 # Usage
