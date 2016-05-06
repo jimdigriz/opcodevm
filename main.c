@@ -11,6 +11,18 @@ static struct column columns[] = {
 			.endian	= BIG,
 		},
 	},
+	{
+		.ctype	= CAST,
+		.width	= 16,
+		.type	= UNSIGNED,
+		.cast	= {
+			.src	= 0,
+			.offset	= 16,
+			.shift	= 16,
+			.mask	= 0xffff,
+		},
+	},
+
 	{0},
 };
 

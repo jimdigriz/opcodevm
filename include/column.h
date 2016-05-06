@@ -36,7 +36,6 @@ struct column_ctype_backed {
 struct column_ctype_cast {
 	unsigned int	src;
 	unsigned int	offset;
-	unsigned int	stride;
 	int		shift;
 	unsigned int	mask;
 };
@@ -62,5 +61,5 @@ struct column {
 
 void column_init(struct column *C);
 void column_fini(struct column *C);
-unsigned int column_get(struct column *C, unsigned int * const offset, pthread_mutex_t * const offsetlk, const unsigned int s);
+unsigned int column_get(struct column *C, const unsigned int s, unsigned int * const offset, pthread_mutex_t * const offsetlk);
 void column_put(struct column *C);

@@ -100,7 +100,7 @@ static void profile_init(const unsigned int length, const unsigned int width, un
 	C[0].width = width;
 
 	column_init(C);
-	nrecs = column_get(C, offset, offsetlk, length);
+	nrecs = column_get(C, length, offset, offsetlk);
 }
 
 static void profile_fini()

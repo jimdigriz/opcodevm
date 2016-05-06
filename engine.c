@@ -129,6 +129,7 @@ void engine_init() {
 
 static void * engine_instance(void *arg)
 {
+
 	struct engine_instance_info *eii = arg;
 
 	struct insn *ip;
@@ -144,7 +145,7 @@ static void * engine_instance(void *arg)
 compiled_already:
 
 	while (1) {
-		n = column_get(eii->columns, &eii->offset->offset, &eii->offset->offsetlk, eii->stride);
+		n = column_get(eii->columns, eii->stride, &eii->offset->offset, &eii->offset->offsetlk);
 		if (n == 0) {
 			column_put(eii->columns);
 			break;
