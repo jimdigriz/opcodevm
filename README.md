@@ -87,6 +87,7 @@ The following environment variables are available:
  * [GAIN Capital](http://ratedata.gaincapital.com/)
  * [Pepperstone](https://pepperstone.com/en/client-resources/historical-tick-data)
  * [Opendata CERN](http://opendata.cern.ch/research/CMS)
+ * [NY Exchange Sample TAQ](ftp://ftp.nyxdata.com/Historical%20Data%20Samples/Daily%20TAQ/)
 
 ## HistData Example
 
@@ -227,3 +228,4 @@ Not exposed (internally used when loading in data from `C<>`):
      * [HyperLogLog](http://research.neustar.biz/2012/10/25/sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
  * [The Virginian Database](https://github.com/bakks/virginian) - GPU bytecode database
      * [`src/vm/vm_gpu.cu`](https://github.com/bakks/virginian/blob/master/src/vm/vm_gpu.cu) is interesting
+ * [kdb - TRILLION ROW BENCHMARKS](http://kparc.com/q4/readme.txt) - source code and notes are in the parent directory
