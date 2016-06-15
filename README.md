@@ -222,6 +222,7 @@ Not exposed (internally used when loading in data from `C<>`):
          * [Linaro: Using GCC Auto-Vectorizer](http://www.slideshare.net/linaroorg/using-gcc-autovectorizer)
  * investigate [Blosc](http://www.blosc.org/) and its [c-blosc](https://github.com/Blosc/c-blosc) library
  * [Concurrency Kit](http://concurrencykit.org/)
+ * [ClickHouse](https://github.com/yandex/ClickHouse) - analytic DBMS for big data
  * support an approximation 'turbo' [Zipfian](http://en.wikipedia.org/wiki/Zipf's_law) mode and use [sketches](http://en.wikipedia.org/wiki/Sketch_(mathematics)):
      * [Count-Min](https://sites.google.com/site/countminsketch/)
      * [K-minimum Values](http://research.neustar.biz/2012/07/09/sketch-of-the-day-k-minimum-values/)
