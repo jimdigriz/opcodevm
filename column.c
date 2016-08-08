@@ -62,6 +62,7 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 		 err(EX_OSERR, "munmap()");
 	C[i].addr = NULL;
 
+// FIXME
 //	if (close(C[i].backed.lfd) == -1)
 //		err(EX_OSERR, "close('%s' [lfd])", C->backed.path);
 //	C->backed.lfd = -1;
