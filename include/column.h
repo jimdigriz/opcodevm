@@ -29,6 +29,7 @@ struct column_ctype_backed {
 	struct stat	stat;
 	unsigned int	offset;
 	int		fd;
+	int		lfd;
 	char		path[MAX_FILEPATH_LENGTH];
 };
 

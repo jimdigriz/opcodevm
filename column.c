@@ -62,7 +62,11 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 	if (o >= C[i].backed.nrecs)
 		return 0;
 
-	if (lseek(C[i].backed.fd, o * C[i].width / 8, SEEK_SET) == -1)
+	C[i].backed.lfd = dup(C[i].backed.fd);
+	if (C[i].backed.lfd == -1)
+		err(EX_OSERR, "dup('%s')", C[i].backed.path);
+
+	if (lseek(C[i].backed.lfd, o * C[i].width / 8, SEEK_SET) == -1)
 		err(EX_OSERR, "lseek('%s')", C[i].backed.path);
 
 	C[i].nrecs = (o + s < C[i].backed.nrecs) ? s : C[i].backed.nrecs - o;
@@ -75,7 +79,7 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 
 	unsigned int r = 0;
 	do {
-		int n = read(C[i].backed.fd, C[i].addr, len);
+		int n = read(C[i].backed.lfd, C[i].addr, len);
 		if (n == -1 && errno != EINTR)
 			errx(EX_OSERR, "read('%s')", C[i].backed.path);
 		else if (n == 0)
@@ -91,6 +95,7 @@ static void backed_put(DISPATCH_PUT_PARAMS)
 	if (munmap(C[i].addr, C[i].width * C[i].nrecs / 8))
 		 err(EX_OSERR, "munmap()");
 	C[i].addr = NULL;
+	close(C[i].backed.lfd);
 }
 
 static struct dispatch dispatch[] = {
