@@ -22,8 +22,6 @@ static struct column columns[] = {
 			.mask	= 0xffff,
 		},
 	},
-
-	{0},
 };
 
 static struct insn insns[] = {
@@ -44,6 +42,7 @@ static struct insn insns[] = {
 
 static struct program program = {
 	.columns	= columns,
+	.ncols		= ARRAY_SIZE(columns),
 	.insns		= insns,
 	.len		= ARRAY_SIZE(insns),
 };

@@ -1,5 +1,4 @@
 #include <sys/stat.h>
-#include <pthread.h>
 
 #define MAX_FILEPATH_LENGTH	1000
 
@@ -46,8 +45,8 @@ struct column_ctype_packet {
 
 struct column {
 	void		*addr;
-	unsigned int	width;
 	unsigned int	nrecs;
+	unsigned int	width;
 	datatype_t	type;
 	column_type_t	ctype;
 
@@ -59,7 +58,7 @@ struct column {
 	};
 };
 
-void column_init(struct column *C);
+void column_init(struct column *C, unsigned int n);
 void column_fini(struct column *C);
-unsigned int column_get(struct column *C, const unsigned int s, unsigned int * const offset, pthread_mutex_t * const offsetlk);
+unsigned int column_get(struct column *C);
 void column_put(struct column *C);

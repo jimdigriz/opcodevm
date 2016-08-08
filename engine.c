@@ -18,16 +18,9 @@
 
 #include "engine.h"
 
-typedef struct {
-	unsigned int	offset;
-	pthread_mutex_t	offsetlk;
-} offset_t;
-
 struct engine_instance_info {
 	struct program	*program;
 	struct column	*columns;
-	unsigned int	stride;
-	offset_t	*offset;
 	pthread_t	thread;
 };
 
@@ -44,9 +37,6 @@ static const char *libs[] = {
 
 	NULL,
 };
-
-static long instances = 1;
-static long pagesize, length;
 
 SLIST_HEAD(opcode_list, opcode) opcode_list = SLIST_HEAD_INITIALIZER(opcode_list);
 
@@ -75,34 +65,21 @@ static struct opcode opcode_ret = {
 	.name	= "ret",
 };
 
-void engine_init() {
+static long long instances;
+
+void engine_init()
+{
 	errno = 0;
 
+	instances = 1;
 	if (getenv("INSTANCES"))
-		instances = strtol(getenv("INSTANCES"), NULL, 10);
+		instances = strtoll(getenv("INSTANCES"), NULL, 10);
 	if (errno == ERANGE || instances < 0)
 		err(EX_USAGE, "invalid INSTANCES");
 	if (instances == 0)
 		instances = sysconf(_SC_NPROCESSORS_ONLN);
 	if (instances == -1)
 		err(EX_OSERR, "sysconf(_SC_NPROCESSORS_ONLN)");
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
-		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
-
-	if (getenv("LENGTH"))
-		length = strtol(getenv("LENGTH"), NULL, 10);
-	if (errno == ERANGE || length < 0)
-		err(EX_USAGE, "invalid LENGTH");
-	if (length == 0) {
-		length = sysconf(_SC_LEVEL2_CACHE_SIZE);
-		if (length == -1)
-			err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
-
-		/* default half of L2 cache to not saturate it */
-		length /= 2;
-	}
 
 	for (const char **l = libs; *l; l++) {
 		void *handle = dlopen(*l, RTLD_NOW|RTLD_LOCAL);
@@ -129,13 +106,12 @@ void engine_init() {
 
 static void * engine_instance(void *arg)
 {
-
 	struct engine_instance_info *eii = arg;
 
 	struct insn *ip;
 	int jmp;
 	unsigned int n;
-#	define CALL(x)	assert(opcode[x]);					\
+#	define CALL(x)	assert(opcode[x]);				\
 			jmp = opcode[x](eii->columns, n, &ip->ops);	\
 			assert(jmp != 0);						
 	/* http://www.complang.tuwien.ac.at/forth/threading/ : direct */
@@ -144,12 +120,10 @@ static void * engine_instance(void *arg)
 	goto compile;
 compiled_already:
 
-	while (1) {
-		n = column_get(eii->columns, eii->stride, &eii->offset->offset, &eii->offset->offsetlk);
-		if (n == 0) {
-			column_put(eii->columns);
-			break;
-		}
+	do {
+		n = column_get(eii->columns);
+		if (n == 0)
+			goto ret;
 
 		ip = &eii->program->insns[0];
 		jmp = 0;
@@ -159,7 +133,7 @@ compiled_already:
 #		pragma GCC diagnostic pop
 ret:
 		column_put(eii->columns);
-	}
+	} while (n);
 
 	return NULL;
 
@@ -198,32 +172,15 @@ void engine_run(struct program *program)
 	if (!eii)
 		err(EX_OSERR, "calloc()");
 
-	column_init(program->columns);
-
-	unsigned int nC = 1;	/* we have a VOID terminator */
-	unsigned int rowwidth = 0;
-	for (struct column *C = program->columns; C->ctype != VOID; C++) {
-		nC++;
-		rowwidth += C->width;
-	}
-	const unsigned int stride = length * 8 / rowwidth;
-	assert(stride > 100);
-
-	offset_t *offset = malloc(sizeof(offset_t));
-	if (!offset)
-		err(EX_OSERR, "malloc()");
-	offset->offset = 0;
-	pthread_mutex_init(&offset->offsetlk, NULL);
+	column_init(program->columns, program->ncols);
 
 	for (int i = 0; i < instances; i++) {
-		eii[i].offset	= offset;
 		eii[i].program	= program;
-		eii[i].stride	= stride;
 
-		eii[i].columns	= malloc(nC * sizeof(struct column));
+		eii[i].columns	= malloc(program->ncols * sizeof(struct column));
 		if (!eii[i].columns)
 			err(EX_OSERR, "malloc()");
-		memcpy(eii[i].columns, program->columns, nC * sizeof(struct column));
+		memcpy(eii[i].columns, program->columns, program->ncols * sizeof(struct column));
 
 		/* program compile run */
 		if (i == 0)
@@ -248,8 +205,6 @@ void engine_run(struct program *program)
 	}
 
 	free(eii);
-	pthread_mutex_destroy(&offset->offsetlk);
-	free(offset);
 
 	column_fini(program->columns);
 }

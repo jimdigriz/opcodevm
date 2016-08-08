@@ -19,7 +19,6 @@
 static long cycles = 1000;
 static long nbestof = 3;
 static long length = 0;
-static long pagesize;
 
 extern SLIST_HEAD(opcode_list, opcode) opcode_list;
 
@@ -127,13 +126,6 @@ static void profile_engine_init() {
 		/* default half of L2 cache to not saturate it */
 		length /= 2;
 	}
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
-		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
-
-	if (length % pagesize)
-		errx(EX_USAGE, "LENGTH must be a multiple of PAGESIZE");
 }
 
 static struct result * perf_benchmark(int p, struct opcode *opcode)

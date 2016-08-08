@@ -38,6 +38,7 @@ struct insn {
 
 struct program {
 	struct column	*columns;
+	unsigned int	ncols;
 	struct insn	*insns;
 	unsigned int	len;
 };
