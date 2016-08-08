@@ -219,9 +219,6 @@ static void print(struct result *result)
 
 int main(int argc, char **argv)
 {
-	unsigned int offset = 0;
-	pthread_mutex_t offsetlk = PTHREAD_MUTEX_INITIALIZER;
-
 	if (argc != 3)
 		errx(EX_USAGE, "%s code/<opcode>.so code/<opcode>/<imp>.so", argv[0]);
 
@@ -241,7 +238,7 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	struct opcode *opcode = SLIST_FIRST(&opcode_list);
-	opcode->profile_init(length, 32, &offset, &offsetlk);
+	opcode->profile_init(length, 32);
 
 	struct result *op = perf_benchmark(p, opcode);
 	printf("op perf:\n");

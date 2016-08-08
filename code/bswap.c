@@ -87,20 +87,20 @@ static void hook(const void *args)
 static struct column *C;
 static unsigned int nrecs;
 
-static void profile_init(const unsigned int length, const unsigned int width, unsigned int * const offset, pthread_mutex_t * const offsetlk)
+static void profile_init(const unsigned int length, const unsigned int width)
 {
 	assert(width > 0);
 	assert(length % width == 0);
 
-	C = calloc(2, sizeof(struct column));
+	C = calloc(1, sizeof(struct column));
 	if (!C)
 		err(EX_OSERR, "calloc()");
 
 	C[0].ctype = ZERO;
 	C[0].width = width;
 
-	column_init(C);
-	nrecs = column_get(C, length, offset, offsetlk);
+	column_init(C, 1);
+	nrecs = column_get(C);
 }
 
 static void profile_fini()

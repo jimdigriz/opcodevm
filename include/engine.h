@@ -16,7 +16,7 @@ struct opcode {
 	int		(*func)(OPCODE_PARAMS);
 	void		(*hook)(const void *imp);
 
-	void		(*profile_init)(const unsigned int length, const unsigned int width, unsigned int * const offset, pthread_mutex_t * const offsetlk);
+	void		(*profile_init)(const unsigned int length, const unsigned int width);
 	void		(*profile_fini)();
 	void		(*profile)();
 
