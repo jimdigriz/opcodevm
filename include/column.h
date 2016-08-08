@@ -59,7 +59,7 @@ struct column {
 	};
 };
 
-void column_init(struct column *C, unsigned int n);
+void column_init(struct column *C);
 void column_fini(struct column *C);
 unsigned int column_get(struct column *C);
 void column_put(struct column *C);

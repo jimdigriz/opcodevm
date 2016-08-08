@@ -26,6 +26,9 @@ struct dispatch {
 	void		(*put)(DISPATCH_PUT_PARAMS);
 };
 
+static long long int ringsize, buflen, chunklen;
+static unsigned int stride;
+
 static void backed_init(DISPATCH_INIT_PARAMS)
 {
 	if (!C[i].width)
@@ -48,10 +51,21 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].nrecs / 8, POSIX_FADV_NOREUSE);
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_NOREUSE)", C[i].backed.path);
+
+	C[i].addr = NULL;
+	C[i].backed.lfd = -1;
 }
 
 static void backed_fini(DISPATCH_FINI_PARAMS)
 {
+	if (munmap(C[i].addr, C[i].width * stride / 8))
+		 err(EX_OSERR, "munmap()");
+	C[i].addr = NULL;
+
+//	if (close(C[i].backed.lfd) == -1)
+//		err(EX_OSERR, "close('%s' [lfd])", C->backed.path);
+//	C->backed.lfd = -1;
+
 	if (close(C[i].backed.fd) == -1)
 		err(EX_OSERR, "close('%s')", C->backed.path);
 	C->backed.fd = -1;
@@ -62,9 +76,15 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 	if (o >= C[i].backed.nrecs)
 		return 0;
 
-	C[i].backed.lfd = dup(C[i].backed.fd);
-	if (C[i].backed.lfd == -1)
-		err(EX_OSERR, "dup('%s')", C[i].backed.path);
+	if (!C[i].addr) {
+		C[i].addr = mmap(NULL, C[i].width * stride / 8, PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+		if (C[i].addr == MAP_FAILED)
+			err(EX_OSERR, "mmap()");
+
+		C[i].backed.lfd = dup(C[i].backed.fd);
+		if (C[i].backed.lfd == -1)
+			err(EX_OSERR, "dup('%s')", C[i].backed.path);
+	}
 
 	if (lseek(C[i].backed.lfd, o * C[i].width / 8, SEEK_SET) == -1)
 		err(EX_OSERR, "lseek('%s')", C[i].backed.path);
@@ -72,10 +92,6 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 	C[i].nrecs = (o + s < C[i].backed.nrecs) ? s : C[i].backed.nrecs - o;
 
 	int len = C[i].width * C[i].nrecs / 8;
-
-	C[i].addr = mmap(NULL, len, PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-	if (C[i].addr == MAP_FAILED)
-		err(EX_OSERR, "mmap()");
 
 	unsigned int r = 0;
 	do {
@@ -92,10 +108,6 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 
 static void backed_put(DISPATCH_PUT_PARAMS)
 {
-	if (munmap(C[i].addr, C[i].width * C[i].nrecs / 8))
-		 err(EX_OSERR, "munmap()");
-	C[i].addr = NULL;
-	close(C[i].backed.lfd);
 }
 
 static struct dispatch dispatch[] = {
@@ -107,13 +119,10 @@ static struct dispatch dispatch[] = {
 	},
 };
 
-static long long int ringsize, buflen, chunklen;
-static unsigned int ncols, stride;
-
 static unsigned int	offset;
 static pthread_mutex_t	offsetlk;
 
-void column_init(struct column *C, unsigned int n)
+void column_init(struct column *C)
 {
 	errno = 0;
 
@@ -148,18 +157,17 @@ void column_init(struct column *C, unsigned int n)
 	if (chunklen >= buflen)
 		errx(EX_USAGE, "CHUNKLEN >= BUFLEN");
 
-	ncols = n;
 	offset = 0;
-	stride = 100;	// FIXME
+	stride = 100000;	// FIXME
 	pthread_mutex_init(&offsetlk, NULL);
 
-	for (unsigned int i = 0; i < ncols; i++)
+	for (unsigned int i = 0; C[i].ctype != VOID; i++)
 		dispatch[C[i].ctype].init(C, i);
 }
 
 void column_fini(struct column *C)
 {
-	for (unsigned int i = 0; i < ncols; i++)
+	for (unsigned int i = 0; C[i].ctype != VOID; i++)
 		dispatch[C[i].ctype].fini(C, i);
 
 	pthread_mutex_destroy(&offsetlk);
@@ -175,7 +183,7 @@ unsigned int column_get(struct column *C)
 	offset += stride;
 	pthread_mutex_unlock(&offsetlk);
 
-	for (unsigned int i = 0; i < ncols; i++) {
+	for (unsigned int i = 0; C[i].ctype != VOID; i++) {
 		unsigned int n = dispatch[C[i].ctype].get(C, i, stride, o);
 		if (n < nrecs)
 			nrecs = n;
@@ -188,6 +196,6 @@ unsigned int column_get(struct column *C)
 
 void column_put(struct column *C)
 {
-	for (unsigned int i = 0; i < ncols; i++)
+	for (unsigned int i = 0; C[i].ctype != VOID; i++)
 		dispatch[C[i].ctype].put(C, i);
 }

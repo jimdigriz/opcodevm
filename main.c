@@ -11,6 +11,7 @@ static struct column columns[] = {
 			.endian	= BIG,
 		},
 	},
+#if 0
 	{
 		.ctype	= CAST,
 		.width	= 16,
@@ -22,6 +23,10 @@ static struct column columns[] = {
 			.mask	= 0xffff,
 		},
 	},
+#endif
+	{
+		.ctype	= VOID,
+	}
 };
 
 static struct insn insns[] = {
@@ -37,12 +42,11 @@ static struct insn insns[] = {
 	},
 	{
 		.name		= "ret",
-	},
+	}
 };
 
 static struct program program = {
 	.columns	= columns,
-	.ncols		= ARRAY_SIZE(columns),
 	.insns		= insns,
 	.len		= ARRAY_SIZE(insns),
 };

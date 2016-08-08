@@ -92,14 +92,16 @@ static void profile_init(const unsigned int length, const unsigned int width)
 	assert(width > 0);
 	assert(length % width == 0);
 
-	C = calloc(1, sizeof(struct column));
+	C = calloc(2, sizeof(struct column));
 	if (!C)
 		err(EX_OSERR, "calloc()");
 
 	C[0].ctype = ZERO;
 	C[0].width = width;
 
-	column_init(C, 1);
+	C[1].ctype = VOID;
+
+	column_init(C);
 	nrecs = column_get(C);
 }
 

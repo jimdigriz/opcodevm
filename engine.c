@@ -172,15 +172,18 @@ void engine_run(struct program *program)
 	if (!eii)
 		err(EX_OSERR, "calloc()");
 
-	column_init(program->columns, program->ncols);
+	column_init(program->columns);
+
+	unsigned int nC = 0;
+	while (program->columns[nC++].ctype != VOID) {}
 
 	for (int i = 0; i < instances; i++) {
 		eii[i].program	= program;
 
-		eii[i].columns	= malloc(program->ncols * sizeof(struct column));
+		eii[i].columns	= malloc(nC * sizeof(struct column));
 		if (!eii[i].columns)
 			err(EX_OSERR, "malloc()");
-		memcpy(eii[i].columns, program->columns, program->ncols * sizeof(struct column));
+		memcpy(eii[i].columns, program->columns, nC * sizeof(struct column));
 
 		/* program compile run */
 		if (i == 0)

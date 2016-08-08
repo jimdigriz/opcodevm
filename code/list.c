@@ -18,18 +18,15 @@ static int OPCODE(OPCODE_PARAMS)
 		goto exit;
 
 	for (unsigned int o = 0; o < n; o++) {
-		for (unsigned int i = 0; C[i].addr; i++) {
+		for (unsigned int i = 0; C[i].ctype != VOID; i++) {
 			char *comma = (i == 0) ? "" : ",";
 
 			switch (C[i].type) {
 			case FLOAT:
+#define CASE_FLOAT(x, y)	case x: printf("%s%f", comma, ((y *)C[i].addr)[o]); break;
 				switch (C[i].width) {
-				case 32:
-					printf("%s%f", comma, ((float *)C[i].addr)[o]);
-					break;
-				case 64:
-					printf("%s%f", comma, ((double *)C[i].addr)[o]);
-					break;
+				CASE_FLOAT(32, float)
+				CASE_FLOAT(64, double)
 				default:
 					errx(EX_SOFTWARE, "FLOAT%d\n", C[i].width);
 				}
