@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <sys/stat.h>
 
 #define MAX_FILEPATH_LENGTH	1000
@@ -24,13 +25,16 @@ typedef enum {
 } column_type_t;
 
 struct column_ctype_backed {
+	void		*ring;
+	unsigned int	ringi;
+	pthread_mutex_t	ringilk;
 	unsigned int	nrecs;
 	endian_t	endian;
 	struct stat	stat;
 	unsigned int	offset;
 	int		fd;
-	int		lfd;
 	char		path[MAX_FILEPATH_LENGTH];
+	pthread_t	thread;
 };
 
 struct column_ctype_cast {
@@ -59,7 +63,7 @@ struct column {
 	};
 };
 
-void column_init(struct column *C);
+void column_init(struct column *C, long long int insts);
 void column_fini(struct column *C);
 unsigned int column_get(struct column *C);
 void column_put(struct column *C);

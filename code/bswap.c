@@ -101,7 +101,7 @@ static void profile_init(const unsigned int length, const unsigned int width)
 
 	C[1].ctype = VOID;
 
-	column_init(C);
+	column_init(C, 1);
 	nrecs = column_get(C);
 }
 

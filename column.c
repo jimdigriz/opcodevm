@@ -16,7 +16,7 @@
 
 #define DISPATCH_INIT_PARAMS	struct column *C, const unsigned int i
 #define DISPATCH_FINI_PARAMS	struct column *C, const unsigned int i
-#define DISPATCH_GET_PARAMS	struct column *C, const unsigned int i, const unsigned int s, const unsigned int o
+#define DISPATCH_GET_PARAMS	struct column *C, const unsigned int i
 #define DISPATCH_PUT_PARAMS	struct column *C, const unsigned int i
 
 struct dispatch {
@@ -26,8 +26,40 @@ struct dispatch {
 	void		(*put)(DISPATCH_PUT_PARAMS);
 };
 
+static long long int instances;
+static long pagesize;
 static long long int ringsize, buflen, chunklen;
 static unsigned int stride;
+
+static void * backed_spool(void *arg)
+{
+	struct column *C = arg;
+
+	unsigned int len = (instances + 1) * C->width / 8 * stride;
+	unsigned char *ptr = C->backed.ring;
+	int n;
+
+	while (1) {
+		n = read(C->backed.fd, ptr, pagesize);
+		if (n == -1) {
+			if (errno == EINTR || errno == EFAULT)
+				continue;
+			err(EX_OSERR, "read('%s')", C->backed.path);
+		} else if (n == 0)
+			break;
+
+		assert(n == pagesize);
+
+		if (mprotect(ptr, pagesize, PROT_READ))
+			err(EX_OSERR, "mprotect('%s', PROT_READ)", C->backed.path);
+
+		ptr += n;
+		if (ptr == (unsigned char *)C->backed.ring + len)
+			ptr = C->backed.ring;
+	}
+
+	return NULL;
+}
 
 static void backed_init(DISPATCH_INIT_PARAMS)
 {
@@ -52,20 +84,25 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_NOREUSE)", C[i].backed.path);
 
+	C[i].backed.ring = mmap(NULL, (instances + 1) * C[i].width / 8 * stride, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if (C[i].backed.ring == MAP_FAILED)
+		err(EX_OSERR, "mmap()");
+
 	C[i].addr = NULL;
-	C[i].backed.lfd = -1;
+	C[i].backed.ringi = 0;
+	pthread_mutex_init(&C[i].backed.ringilk, NULL);
+
+	if (pthread_create(&C[i].backed.thread, NULL, backed_spool, &C[i]))
+		err(EX_OSERR, "pthread_create(backed_spool, '%s')", C[i].backed.path);
 }
 
 static void backed_fini(DISPATCH_FINI_PARAMS)
 {
-	if (munmap(C[i].addr, C[i].width * stride / 8))
+	pthread_mutex_destroy(&C[i].backed.ringilk);
+
+	if (munmap(C[i].backed.ring, (instances + 1) * C[i].width / 8 * stride))
 		 err(EX_OSERR, "munmap()");
 	C[i].addr = NULL;
-
-// FIXME
-//	if (close(C[i].backed.lfd) == -1)
-//		err(EX_OSERR, "close('%s' [lfd])", C->backed.path);
-//	C->backed.lfd = -1;
 
 	if (close(C[i].backed.fd) == -1)
 		err(EX_OSERR, "close('%s')", C->backed.path);
@@ -74,41 +111,22 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 
 static unsigned int backed_get(DISPATCH_GET_PARAMS)
 {
-	if (o >= C[i].backed.nrecs)
-		return 0;
+	unsigned int ringi;
 
-	if (!C[i].addr) {
-		C[i].addr = mmap(NULL, C[i].width * stride / 8, PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-		if (C[i].addr == MAP_FAILED)
-			err(EX_OSERR, "mmap()");
+	pthread_mutex_lock(&C[i].backed.ringilk);
+	ringi = C[i].backed.ringi;
+	C[i].backed.ringi = (C[i].backed.ringi + 1) % (instances + 1);
+	pthread_mutex_unlock(&C[i].backed.ringilk);
 
-		C[i].backed.lfd = dup(C[i].backed.fd);
-		if (C[i].backed.lfd == -1)
-			err(EX_OSERR, "dup('%s')", C[i].backed.path);
-	}
+	C[i].addr = &((unsigned char *)C[i].backed.ring)[ringi * C[i].width / 8 * stride];
 
-	if (lseek(C[i].backed.lfd, o * C[i].width / 8, SEEK_SET) == -1)
-		err(EX_OSERR, "lseek('%s')", C[i].backed.path);
-
-	C[i].nrecs = (o + s < C[i].backed.nrecs) ? s : C[i].backed.nrecs - o;
-
-	int len = C[i].width * C[i].nrecs / 8;
-
-	unsigned int r = 0;
-	do {
-		int n = read(C[i].backed.lfd, C[i].addr, len);
-		if (n == -1 && errno != EINTR)
-			errx(EX_OSERR, "read('%s')", C[i].backed.path);
-		else if (n == 0)
-			errx(EX_SOFTWARE, "read('%s') hit EOF", C[i].backed.path);
-		r += n;
-	} while (len - r > 0);
-
-	return C[i].nrecs;
+	return stride;
 }
 
 static void backed_put(DISPATCH_PUT_PARAMS)
 {
+	if (mprotect(C[i].addr, C[i].nrecs * C[i].width / 8, PROT_WRITE))
+		err(EX_OSERR, "mprotect('%s', PROT_WRITE)", C[i].backed.path);
 }
 
 static struct dispatch dispatch[] = {
@@ -120,12 +138,13 @@ static struct dispatch dispatch[] = {
 	},
 };
 
-static unsigned int	offset;
-static pthread_mutex_t	offsetlk;
-
-void column_init(struct column *C)
+void column_init(struct column *C, long long int insts)
 {
 	errno = 0;
+
+	pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	ringsize = 3;
 	if (getenv("RINGSIZE"))
@@ -158,9 +177,8 @@ void column_init(struct column *C)
 	if (chunklen >= buflen)
 		errx(EX_USAGE, "CHUNKLEN >= BUFLEN");
 
-	offset = 0;
+	instances = insts;
 	stride = 100000;	// FIXME
-	pthread_mutex_init(&offsetlk, NULL);
 
 	for (unsigned int i = 0; C[i].ctype != VOID; i++)
 		dispatch[C[i].ctype].init(C, i);
@@ -170,22 +188,14 @@ void column_fini(struct column *C)
 {
 	for (unsigned int i = 0; C[i].ctype != VOID; i++)
 		dispatch[C[i].ctype].fini(C, i);
-
-	pthread_mutex_destroy(&offsetlk);
 }
 
 unsigned int column_get(struct column *C)
 {
 	unsigned int nrecs = UINT_MAX;
-	unsigned int o;
-
-	pthread_mutex_lock(&offsetlk);
-	o = offset;
-	offset += stride;
-	pthread_mutex_unlock(&offsetlk);
 
 	for (unsigned int i = 0; C[i].ctype != VOID; i++) {
-		unsigned int n = dispatch[C[i].ctype].get(C, i, stride, o);
+		unsigned int n = dispatch[C[i].ctype].get(C, i);
 		if (n < nrecs)
 			nrecs = n;
 	}
