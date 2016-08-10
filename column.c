@@ -27,35 +27,36 @@ struct dispatch {
 };
 
 static long long int instances;
-static long pagesize;
-static long long int ringsize, buflen, chunklen;
 static unsigned int stride;
 
 static void * backed_spool(void *arg)
 {
 	struct column *C = arg;
 
-	unsigned int len = (instances + 1) * C->width / 8 * stride;
-	unsigned char *ptr = C->backed.ring;
-	int n;
+	long pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
+
+	unsigned int dlen = C->width / 8 * stride;
+	unsigned int blen = dlen + pagesize - (dlen % pagesize);
+
+	unsigned char *b;
+	unsigned int o = 0;
+	int i = -1;
 
 	while (1) {
-		n = read(C->backed.fd, ptr, pagesize);
+		if (o == 0)
+			b = (unsigned char *)C->backed.ring + (++i % (instances + 1)) * blen;
+
+		int n = read(C->backed.fd, b + o, dlen - o);
 		if (n == -1) {
-			if (errno == EINTR || errno == EFAULT)
+			if (errno == EINTR)
 				continue;
 			err(EX_OSERR, "read('%s')", C->backed.path);
 		} else if (n == 0)
 			break;
 
-		assert(n == pagesize);
-
-		if (mprotect(ptr, pagesize, PROT_READ))
-			err(EX_OSERR, "mprotect('%s', PROT_READ)", C->backed.path);
-
-		ptr += n;
-		if (ptr == (unsigned char *)C->backed.ring + len)
-			ptr = C->backed.ring;
+		o += n % dlen;
 	}
 
 	return NULL;
@@ -65,6 +66,10 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 {
 	if (!C[i].width)
 		errx(EX_USAGE, "C[i].width");
+
+	long pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	C[i].backed.fd = open(C[i].backed.path, O_RDONLY);
 	if (C[i].backed.fd == -1)
@@ -84,9 +89,15 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_NOREUSE)", C[i].backed.path);
 
-	C[i].backed.ring = mmap(NULL, (instances + 1) * C[i].width / 8 * stride, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	unsigned int blen = C[i].width / 8 * stride;
+	blen += pagesize - (blen % pagesize);
+
+	C[i].backed.ring = mmap(NULL, blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (C[i].backed.ring == MAP_FAILED)
 		err(EX_OSERR, "mmap()");
+	for (unsigned int j = 1; j < instances + 1; j++)
+		if (mmap((unsigned char *)C[i].backed.ring + j * blen, blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0) == MAP_FAILED)
+			err(EX_OSERR, "mmap(MAP_FIXED)");
 
 	C[i].addr = NULL;
 	C[i].backed.ringi = 0;
@@ -125,8 +136,6 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 
 static void backed_put(DISPATCH_PUT_PARAMS)
 {
-	if (mprotect(C[i].addr, C[i].nrecs * C[i].width / 8, PROT_WRITE))
-		err(EX_OSERR, "mprotect('%s', PROT_WRITE)", C[i].backed.path);
 }
 
 static struct dispatch dispatch[] = {
@@ -140,43 +149,6 @@ static struct dispatch dispatch[] = {
 
 void column_init(struct column *C, long long int insts)
 {
-	errno = 0;
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
-		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
-
-	ringsize = 3;
-	if (getenv("RINGSIZE"))
-		ringsize = strtoll(getenv("RINGSIZE"), NULL, 10);
-	if (errno == ERANGE || ringsize < 0)
-		err(EX_USAGE, "invalid RINGSIZE");
-	if (ringsize < 3)
-		errx(EX_USAGE, "RINGSIZE cannot be less than 3");
-
-	buflen = 32 * 1024 * 1024;
-	if (getenv("BUFLEN"))
-		buflen = strtoll(getenv("BUFLEN"), NULL, 10);
-	if (errno == ERANGE || buflen < 0)
-		err(EX_USAGE, "invalid BUFLEN");
-
-	chunklen = 0;
-	if (getenv("CHUNKLEN"))
-		chunklen = strtoll(getenv("CHUNKLEN"), NULL, 10);
-	if (errno == ERANGE || chunklen < 0)
-		err(EX_USAGE, "invalid CHUNKLEN");
-	if (chunklen == 0) {
-		chunklen = sysconf(_SC_LEVEL2_CACHE_SIZE);
-		if (chunklen == -1)
-			err(EX_OSERR, "sysconf(_SC_LEVEL2_CACHE_SIZE)");
-
-		/* default half of L2 cache to not saturate it */
-		chunklen /= 2;
-	}
-
-	if (chunklen >= buflen)
-		errx(EX_USAGE, "CHUNKLEN >= BUFLEN");
-
 	instances = insts;
 	stride = 100000;	// FIXME
 

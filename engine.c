@@ -15,7 +15,6 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <signal.h>
 
 #include "engine.h"
 
@@ -166,20 +165,8 @@ compile:
 	return NULL;
 }
 
-static void sig_handler_noop(int signum)
-{
-	(void)signum;
-}
-
 void engine_run(struct program *program)
 {
-	struct sigaction sa;
-	sa.sa_handler = sig_handler_noop;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	if (sigaction(SIGSEGV, &sa, NULL) == -1)
-		err(EX_OSERR, "sigaction(SIGSEGV)");
-
 	cpu_set_t cpuset;
 	struct engine_instance_info *eii = calloc(instances, sizeof(struct engine_instance_info));
 	if (!eii)

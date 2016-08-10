@@ -65,9 +65,6 @@ The following environment variables are available:
  * **`NOARCH`:** skip arch specific jets
  * **`NOCL`:** skip CL specific jets (*recommended* as this is slow!)
  * **`INSTANCES` (default: 1):** engine parallelism (0 sets to `getconf _NPROCESSORS_ONLN`)
- * **`RINGSIZE` (default: 3):** number of buffers per ring buffer
- * **`BUFLEN` (default: 32MB):** max size of buffer per column per instance
- * **`CHUNKLEN` (default: half of `_SC_LEVEL2_CACHE_SIZE`):** processing chunk size
 
 ## Profiling Opcode Implementations
 
