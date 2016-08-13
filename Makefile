@@ -14,7 +14,7 @@ VERSION		:= $(shell git rev-parse --short HEAD)$(shell git diff-files --quiet ||
 
 CPPFLAGS	+= -MD -MP -Iinclude -I.
 CFLAGS		+= -std=c11 -D_DEFAULT_SOURCE -D_FILE_OFFSET_BITS=64 -pedantic -pedantic-errors -Wall -Wextra -Wcast-align -fPIC -pthread -DVERSION="\"$(VERSION)\""
-LDFLAGS		+= -rdynamic -lpthread -pthread -lasan -lm
+LDFLAGS		+= -rdynamic -lpthread -pthread -lm
 LDFLAGS_SO	+= $(LDFLAGS) -lOpenCL
 
 CFLAGS		+= -march=native -mtune=native
@@ -24,12 +24,13 @@ ifndef NDEBUG
 	NOSTRIP	:= 1
 ifndef NPROT
 	CFLAGS	+= -fstack-protector-all -fsanitize=address
-	LDFLAGS	+= -fsanitize=address
+	LDFLAGS	+= -fsanitize=address -lasan
 endif
 else
 	CFLAGS	+= -O3 -DNDEBUG
 ifndef NPROT
 	CFLAGS	+= -fstack-protector-strong
+	LDFLAGS	+= -lasan
 endif
 endif
 
