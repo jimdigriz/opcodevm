@@ -189,12 +189,14 @@ void engine_run(struct program *program)
 		if (i == 0)
 			engine_instance(&eii[i]);
 
-		if (pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]))
+		errno = pthread_create(&eii[i].thread, NULL, engine_instance, &eii[i]);
+		if (errno)
 			err(EX_OSERR, "pthread_create()");
 		if (instances > 1) {
 			CPU_ZERO(&cpuset);
 			CPU_SET(i, &cpuset);
-			if (pthread_setaffinity_np(eii[i].thread, sizeof(cpuset), &cpuset))
+			errno = pthread_setaffinity_np(eii[i].thread, sizeof(cpuset), &cpuset);
+			if (errno)
 				warn("pthread_setaffinity_np()");
 		}
 	}
