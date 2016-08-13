@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <semaphore.h>
 #include <sys/stat.h>
 
 #define MAX_FILEPATH_LENGTH	1000
@@ -26,8 +27,10 @@ typedef enum {
 
 struct column_ctype_backed {
 	void		*ring;
-	unsigned int	ringi;
-	pthread_mutex_t	ringilk;
+	unsigned int	blen;
+	unsigned int	ring_in, ring_out;
+	pthread_mutex_t	ringlk;
+	sem_t		ring_has_data, ring_has_room;
 	unsigned int	nrecs;
 	endian_t	endian;
 	struct stat	stat;
