@@ -29,10 +29,14 @@ struct ring {
 	void		*addr;
 	unsigned int	blen;
 	unsigned int	in, out;
-	int		llen;
 	pthread_mutex_t	lock;
 	sem_t		has_data, has_room;
 	pthread_t	thread;
+	long		pagesize;
+};
+
+struct ringblkinfo {
+	unsigned int	nrecs;
 };
 
 struct column_ctype_backed {

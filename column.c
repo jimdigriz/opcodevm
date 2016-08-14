@@ -45,30 +45,18 @@ static void * backed_spool(void *arg)
 {
 	struct column *C = arg;
 
-	long pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
-		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
-
 	unsigned int dlen = C->width / 8 * stride;
+	unsigned int i = instances + 1;	// sneaky hook to push empty blocks into ring
 
-	unsigned char *b = C->backed.ring->addr;
-	unsigned int o = 0;
-
+	// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
 	int n;
 	do {
-		n = read(C->backed.fd, b + o, dlen - o);
-		if (n == -1) {
-			if (errno == EINTR)
-				continue;
-			err(EX_OSERR, "read('%s')", C->backed.path);
-		}
+		unsigned char *b;
+		struct ringblkinfo *info;
+		unsigned int o = 0;
 
-		o += n % dlen;
-		if (o)
-			continue;
-
-		// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
 		SEM_WAIT(&C->backed.ring->has_room, ring_has_room, C->backed.path);
+
 		errno = pthread_mutex_lock(&C->backed.ring->lock);
 		if (errno)
 			err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
@@ -76,17 +64,26 @@ static void * backed_spool(void *arg)
 		errno = pthread_mutex_unlock(&C->backed.ring->lock);
 		if (errno)
 			err(EX_OSERR, "pthread_mutex_unlock('%s')", C->backed.path);
+
+		do {
+			n = read(C->backed.fd, b + o, dlen - o);
+			if (n == 0)
+				i--;
+			else if (n == -1) {
+				if (errno == EINTR)
+					continue;
+				err(EX_OSERR, "read('%s')", C->backed.path);
+			}
+
+			o += n;
+		} while (n && o < dlen);
+
+		info = (struct ringblkinfo *)(b + (dlen + (C->backed.ring->pagesize - (dlen % C->backed.ring->pagesize))));
+		info->nrecs = o * 8 / C->width;
+
 		if (sem_post(&C->backed.ring->has_data) == -1)
 			err(EX_OSERR, "sem_post('%s', ring_has_data)", C->backed.path);
-	} while (n);	// n == 0 on EOF
-
-	errno = pthread_mutex_lock(&C->backed.ring->lock);
-	if (errno)
-		err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
-	C->backed.ring->llen = o;
-	errno = pthread_mutex_unlock(&C->backed.ring->lock);
-	if (errno)
-		err(EX_OSERR, "pthread_mutex_unlock('%s')", C->backed.path);
+	} while (i);
 
 	return NULL;
 }
@@ -95,10 +92,6 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 {
 	if (!C[i].width)
 		errx(EX_USAGE, "C[i].width");
-
-	long pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1)
-		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	C[i].backed.fd = open(C[i].backed.path, O_RDONLY);
 	if (C[i].backed.fd == -1)
@@ -124,10 +117,16 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 
 	C[i].backed.ring->in = 0;
 	C[i].backed.ring->out = 0;
-	C[i].backed.ring->llen = -1;
+
+	C[i].backed.ring->pagesize = sysconf(_SC_PAGESIZE);
+	if (C[i].backed.ring->pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	C[i].backed.ring->blen = C[i].width / 8 * stride;
-	C[i].backed.ring->blen += pagesize - (C[i].backed.ring->blen % pagesize);
+	C[i].backed.ring->blen += C[i].backed.ring->pagesize - (C[i].backed.ring->blen % C[i].backed.ring->pagesize);
+
+	C[i].backed.ring->blen += sizeof(struct ringblkinfo);
+	C[i].backed.ring->blen += C[i].backed.ring->pagesize - (C[i].backed.ring->blen % C[i].backed.ring->pagesize);
 
 	C[i].backed.ring->addr = mmap(NULL, (instances + 1) * C[i].backed.ring->blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (C[i].backed.ring->addr == MAP_FAILED)
@@ -170,41 +169,21 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 
 static unsigned int backed_get(DISPATCH_GET_PARAMS)
 {
-	unsigned int s = stride;
-	int sval;
-
-	errno = pthread_mutex_lock(&C[i].backed.ring->lock);
-	if (errno)
-		err(EX_OSERR, "pthread_mutex_lock('%s')", C[i].backed.path);
-	if (C[i].backed.ring->llen != -1) {
-		if (sem_getvalue(&C[i].backed.ring->has_data, &sval) == -1)
-			err(EX_OSERR, "sem_getvalue('%s')", C[i].backed.path);
-		if (sval == 0)
-			s = 0;
-	}
-	errno = pthread_mutex_unlock(&C[i].backed.ring->lock);
-	if (errno)
-		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
-
-	if (s == 0)
-		goto fin;
+	unsigned int dlen = C->width / 8 * stride;
+	struct ringblkinfo *info;
 
 	SEM_WAIT(&C[i].backed.ring->has_data, ring_has_data, C[i].backed.path);
 	errno = pthread_mutex_lock(&C[i].backed.ring->lock);
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_lock('%s')", C[i].backed.path);
 	C[i].addr = (unsigned char *)C[i].backed.ring->addr + (C[i].backed.ring->out++ % (instances + 1)) * C[i].backed.ring->blen;
-	if (C[i].backed.ring->llen != -1) {
-		if (sem_getvalue(&C[i].backed.ring->has_data, &sval) == -1)
-			err(EX_OSERR, "sem_getvalue('%s')", C[i].backed.path);
-		if (sval == 0)
-			s = C[i].backed.ring->llen;
-	}
 	errno = pthread_mutex_unlock(&C[i].backed.ring->lock);
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
-fin:
-	return s;
+
+	info = (struct ringblkinfo *)((unsigned char *)C[i].addr + (dlen + (C->backed.ring->pagesize - (dlen % C[i].backed.ring->pagesize))));
+
+	return info->nrecs;
 }
 
 static void backed_put(DISPATCH_PUT_PARAMS)
