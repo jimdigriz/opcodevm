@@ -58,6 +58,7 @@ static void * backed_spool(void *arg)
 		SEM_WAIT(&C->backed.ring->has_room, ring_has_room, C->backed.path);
 
 		b = (unsigned char *)C->backed.ring->addr + (C->backed.ring->in++ % (instances + 1)) * C->backed.ring->blen;
+		info = (struct ringblkinfo *)(b + (dlen + (C->backed.ring->pagesize - (dlen % C->backed.ring->pagesize))));
 
 		do {
 			n = read(C->backed.fd, b + o, dlen - o);
@@ -72,7 +73,6 @@ static void * backed_spool(void *arg)
 			o += n;
 		} while (n && o < dlen);
 
-		info = (struct ringblkinfo *)(b + (dlen + (C->backed.ring->pagesize - (dlen % C->backed.ring->pagesize))));
 		info->nrecs = o * 8 / C->width;
 
 		if (sem_post(&C->backed.ring->has_data) == -1)
