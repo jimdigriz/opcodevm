@@ -50,7 +50,7 @@ static void * backed_spool(void *arg)
 
 	unsigned int dlen = C->width / 8 * stride;
 
-	unsigned char *b = C->backed.ring;
+	unsigned char *b = C->backed.ring->addr;
 	unsigned int o = 0;
 
 	int n;
@@ -67,15 +67,15 @@ static void * backed_spool(void *arg)
 			continue;
 
 		// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
-		SEM_WAIT(&C->backed.ring_has_room, ring_as_room, C->backed.path);
-		errno = pthread_mutex_lock(&C->backed.ringlk);
+		SEM_WAIT(&C->backed.ring->has_room, ring_as_room, C->backed.path);
+		errno = pthread_mutex_lock(&C->backed.ring->lock);
 		if (errno)
 			err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
-		b = (unsigned char *)C->backed.ring + (C->backed.ring_in++ % (instances + 1)) * C->backed.blen;
-		errno = pthread_mutex_unlock(&C->backed.ringlk);
+		b = (unsigned char *)C->backed.ring->addr + (C->backed.ring->in++ % (instances + 1)) * C->backed.ring->blen;
+		errno = pthread_mutex_unlock(&C->backed.ring->lock);
 		if (errno)
 			err(EX_OSERR, "pthread_mutex_unlock('%s')", C->backed.path);
-		if (sem_post(&C->backed.ring_has_data) == -1)
+		if (sem_post(&C->backed.ring->has_data) == -1)
 			err(EX_OSERR, "sem_post('%s', ring_has_data)", C->backed.path);
 	} while (n);	// n == 0 on EOF
 
@@ -102,33 +102,36 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 
 	C[i].backed.nrecs = (C[i].backed.stat.st_size - C[i].backed.offset) * 8 / C[i].width;
 
-	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].nrecs / 8, POSIX_FADV_SEQUENTIAL);
+	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].backed.nrecs / 8, POSIX_FADV_SEQUENTIAL);
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_SEQUENTIAL)", C[i].backed.path);
-	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].nrecs / 8, POSIX_FADV_NOREUSE);
+	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].backed.nrecs / 8, POSIX_FADV_NOREUSE);
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_NOREUSE)", C[i].backed.path);
 
-	C[i].backed.blen = C[i].width / 8 * stride;
-	C[i].backed.blen += pagesize - (C[i].backed.blen % pagesize);
+	C[i].backed.ring = malloc(sizeof(struct ring));
+	if (!C[i].backed.ring)
+		err(EX_OSERR, "malloc(struct ring)");
 
-	C[i].backed.ring = mmap(NULL, C[i].backed.blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	if (C[i].backed.ring == MAP_FAILED)
+	C[i].backed.ring->in = 0;
+	C[i].backed.ring->out = 0;
+
+	C[i].backed.ring->blen = C[i].width / 8 * stride;
+	C[i].backed.ring->blen += pagesize - (C[i].backed.ring->blen % pagesize);
+
+	C[i].backed.ring->addr = mmap(NULL, (instances + 1) * C[i].backed.ring->blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if (C[i].backed.ring->addr == MAP_FAILED)
 		err(EX_OSERR, "mmap()");
-	for (unsigned int j = 1; j < instances + 1; j++)
-		if (mmap((unsigned char *)C[i].backed.ring + j * C[i].backed.blen, C[i].backed.blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) == MAP_FAILED)
-			err(EX_OSERR, "mmap(MAP_FIXED)");
 
 	C[i].addr = NULL;
-	C[i].backed.ring_in = 0;
-	C[i].backed.ring_out = 0;
-	errno = pthread_mutex_init(&C[i].backed.ringlk, NULL);
+
+	errno = pthread_mutex_init(&C[i].backed.ring->lock, NULL);
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_init('%s')", C[i].backed.path);
 	assert(instances + 1 < SEM_VALUE_MAX);
-	if (sem_init(&C[i].backed.ring_has_data, 0, 0) == -1)
+	if (sem_init(&C[i].backed.ring->has_data, 0, 0) == -1)
 		err(EX_OSERR, "sem_init('%s', ring_has_data)", C[i].backed.path);
-	if (sem_init(&C[i].backed.ring_has_room, 0, instances + 1) == -1)
+	if (sem_init(&C[i].backed.ring->has_room, 0, instances + 1) == -1)
 		err(EX_OSERR, "sem_init('%s', ring_has_room)", C[i].backed.path);
 
 	errno = pthread_create(&C[i].backed.thread, NULL, backed_spool, &C[i]);
@@ -139,12 +142,15 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 
 static void backed_fini(DISPATCH_FINI_PARAMS)
 {
-	sem_destroy(&C[i].backed.ring_has_data);
-	sem_destroy(&C[i].backed.ring_has_room);
-	pthread_mutex_destroy(&C[i].backed.ringlk);
+	sem_destroy(&C[i].backed.ring->has_data);
+	sem_destroy(&C[i].backed.ring->has_room);
+	pthread_mutex_destroy(&C[i].backed.ring->lock);
 
-	if (munmap(C[i].backed.ring, (instances + 1) * C[i].width / 8 * stride))
+	if (munmap(C[i].backed.ring, (instances + 1) * C[i].backed.ring->blen))
 		 err(EX_OSERR, "munmap()");
+
+	free(C[i].backed.ring);
+
 	C[i].addr = NULL;
 
 	if (close(C[i].backed.fd) == -1)
@@ -154,18 +160,19 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 
 static unsigned int backed_get(DISPATCH_GET_PARAMS)
 {
-	SEM_WAIT(&C[i].backed.ring_has_data, ring_has_data, C[i].backed.path);
-	pthread_mutex_lock(&C[i].backed.ringlk);
-	C[i].addr = (unsigned char *)C[i].backed.ring + (C[i].backed.ring_out++ % (instances + 1)) * C[i].backed.blen;
-	pthread_mutex_unlock(&C[i].backed.ringlk);
+	SEM_WAIT(&C[i].backed.ring->has_data, ring_has_data, C[i].backed.path);
+	pthread_mutex_lock(&C[i].backed.ring->lock);
+	C[i].addr = (unsigned char *)C[i].backed.ring->addr + (C[i].backed.ring->out++ % (instances + 1)) * C[i].backed.ring->blen;
+	pthread_mutex_unlock(&C[i].backed.ring->lock);
 
-	return stride;
+	return stride;	// FIXME
 }
 
 static void backed_put(DISPATCH_PUT_PARAMS)
 {
-	if (sem_post(&C[i].backed.ring_has_room) == -1)
+	if (sem_post(&C[i].backed.ring->has_room) == -1)
 		err(EX_OSERR, "sem_post('%s', ring_has_room)", C[i].backed.path);
+	C[i].addr = NULL;
 }
 
 static struct dispatch dispatch[] = {

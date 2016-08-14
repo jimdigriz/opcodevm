@@ -14,7 +14,6 @@
 #include <limits.h>
 #include <pthread.h>
 #include <fcntl.h>
-#include <stdio.h>
 
 #include "engine.h"
 

@@ -25,12 +25,16 @@ typedef enum {
 	PACKET,
 } column_type_t;
 
-struct column_ctype_backed {
-	void		*ring;
+struct ring {
+	void		*addr;
 	unsigned int	blen;
-	unsigned int	ring_in, ring_out;
-	pthread_mutex_t	ringlk;
-	sem_t		ring_has_data, ring_has_room;
+	unsigned int	in, out;
+	pthread_mutex_t	lock;
+	sem_t		has_data, has_room;
+};
+
+struct column_ctype_backed {
+	struct ring	*ring;
 	unsigned int	nrecs;
 	endian_t	endian;
 	struct stat	stat;
@@ -53,7 +57,6 @@ struct column_ctype_packet {
 
 struct column {
 	void		*addr;
-	unsigned int	nrecs;
 	unsigned int	width;
 	datatype_t	type;
 	column_type_t	ctype;
