@@ -12,6 +12,7 @@
 #include <semaphore.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "column.h"
 
@@ -79,6 +80,14 @@ static void * backed_spool(void *arg)
 			err(EX_OSERR, "sem_post('%s', ring_has_data)", C->backed.path);
 	} while (n);	// n == 0 on EOF
 
+	errno = pthread_mutex_lock(&C->backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
+	C->backed.ring->llen = o;
+	errno = pthread_mutex_unlock(&C->backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_unlock('%s')", C->backed.path);
+
 	return NULL;
 }
 
@@ -115,6 +124,7 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 
 	C[i].backed.ring->in = 0;
 	C[i].backed.ring->out = 0;
+	C[i].backed.ring->llen = -1;
 
 	C[i].backed.ring->blen = C[i].width / 8 * stride;
 	C[i].backed.ring->blen += pagesize - (C[i].backed.ring->blen % pagesize);
@@ -134,7 +144,7 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 	if (sem_init(&C[i].backed.ring->has_room, 0, instances + 1) == -1)
 		err(EX_OSERR, "sem_init('%s', ring_has_room)", C[i].backed.path);
 
-	errno = pthread_create(&C[i].backed.thread, NULL, backed_spool, &C[i]);
+	errno = pthread_create(&C[i].backed.ring->thread, NULL, backed_spool, &C[i]);
 	if (errno)
 		err(EX_OSERR, "pthread_create(backed_spool, '%s')", C[i].backed.path);
 	// FIXME pthread_setaffinity_np()
@@ -146,7 +156,7 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 	sem_destroy(&C[i].backed.ring->has_room);
 	pthread_mutex_destroy(&C[i].backed.ring->lock);
 
-	if (munmap(C[i].backed.ring, (instances + 1) * C[i].backed.ring->blen))
+	if (munmap(C[i].backed.ring->addr, (instances + 1) * C[i].backed.ring->blen))
 		 err(EX_OSERR, "munmap()");
 
 	free(C[i].backed.ring);
@@ -160,12 +170,41 @@ static void backed_fini(DISPATCH_FINI_PARAMS)
 
 static unsigned int backed_get(DISPATCH_GET_PARAMS)
 {
-	SEM_WAIT(&C[i].backed.ring->has_data, ring_has_data, C[i].backed.path);
-	pthread_mutex_lock(&C[i].backed.ring->lock);
-	C[i].addr = (unsigned char *)C[i].backed.ring->addr + (C[i].backed.ring->out++ % (instances + 1)) * C[i].backed.ring->blen;
-	pthread_mutex_unlock(&C[i].backed.ring->lock);
+	unsigned int s = stride;
+	int sval;
 
-	return stride;	// FIXME
+	errno = pthread_mutex_lock(&C[i].backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_lock('%s')", C[i].backed.path);
+	if (C[i].backed.ring->llen != -1) {
+		if (sem_getvalue(&C[i].backed.ring->has_data, &sval) == -1)
+			err(EX_OSERR, "sem_getvalue('%s')", C[i].backed.path);
+		if (sval == 0)
+			s = 0;
+	}
+	errno = pthread_mutex_unlock(&C[i].backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
+
+	if (s == 0)
+		goto fin;
+
+	SEM_WAIT(&C[i].backed.ring->has_data, ring_has_data, C[i].backed.path);
+	errno = pthread_mutex_lock(&C[i].backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_lock('%s')", C[i].backed.path);
+	C[i].addr = (unsigned char *)C[i].backed.ring->addr + (C[i].backed.ring->out++ % (instances + 1)) * C[i].backed.ring->blen;
+	if (C[i].backed.ring->llen != -1) {
+		if (sem_getvalue(&C[i].backed.ring->has_data, &sval) == -1)
+			err(EX_OSERR, "sem_getvalue('%s')", C[i].backed.path);
+		if (sval == 0)
+			s = C[i].backed.ring->llen;
+	}
+	errno = pthread_mutex_unlock(&C[i].backed.ring->lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
+fin:
+	return s;
 }
 
 static void backed_put(DISPATCH_PUT_PARAMS)

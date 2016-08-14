@@ -29,8 +29,10 @@ struct ring {
 	void		*addr;
 	unsigned int	blen;
 	unsigned int	in, out;
+	int		llen;
 	pthread_mutex_t	lock;
 	sem_t		has_data, has_room;
+	pthread_t	thread;
 };
 
 struct column_ctype_backed {
@@ -41,7 +43,6 @@ struct column_ctype_backed {
 	unsigned int	offset;
 	int		fd;
 	char		path[MAX_FILEPATH_LENGTH];
-	pthread_t	thread;
 };
 
 struct column_ctype_cast {
