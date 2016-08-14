@@ -57,13 +57,7 @@ static void * backed_spool(void *arg)
 
 		SEM_WAIT(&C->backed.ring->has_room, ring_has_room, C->backed.path);
 
-		errno = pthread_mutex_lock(&C->backed.ring->lock);
-		if (errno)
-			err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
 		b = (unsigned char *)C->backed.ring->addr + (C->backed.ring->in++ % (instances + 1)) * C->backed.ring->blen;
-		errno = pthread_mutex_unlock(&C->backed.ring->lock);
-		if (errno)
-			err(EX_OSERR, "pthread_mutex_unlock('%s')", C->backed.path);
 
 		do {
 			n = read(C->backed.fd, b + o, dlen - o);
