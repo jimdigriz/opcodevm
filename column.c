@@ -98,10 +98,10 @@ static void backed_init(DISPATCH_INIT_PARAMS)
 
 	C[i].backed.nrecs = (C[i].backed.stat.st_size - C[i].backed.offset) * 8 / C[i].width;
 
-	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].backed.nrecs / 8, POSIX_FADV_SEQUENTIAL);
+	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width / 8 * C[i].backed.nrecs, POSIX_FADV_SEQUENTIAL);
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_SEQUENTIAL)", C[i].backed.path);
-	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width * C[i].backed.nrecs / 8, POSIX_FADV_NOREUSE);
+	errno = posix_fadvise(C[i].backed.fd, C[i].backed.offset, C[i].width / 8 * C[i].backed.nrecs, POSIX_FADV_NOREUSE);
 	if (errno)
 		warn("posix_fadvise('%s', POSIX_FADV_NOREUSE)", C[i].backed.path);
 
