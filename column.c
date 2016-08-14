@@ -67,7 +67,7 @@ static void * backed_spool(void *arg)
 			continue;
 
 		// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
-		SEM_WAIT(&C->backed.ring->has_room, ring_as_room, C->backed.path);
+		SEM_WAIT(&C->backed.ring->has_room, ring_has_room, C->backed.path);
 		errno = pthread_mutex_lock(&C->backed.ring->lock);
 		if (errno)
 			err(EX_OSERR, "pthread_mutex_lock('%s')", C->backed.path);
