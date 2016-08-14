@@ -49,8 +49,8 @@ static void * backed_spool(void *arg)
 	unsigned int i = instances + 1;	// sneaky hook to push empty blocks into ring
 
 	// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
-	int n;
 	do {
+		int n;
 		unsigned char *b;
 		struct ringblkinfo *info;
 		unsigned int o = 0;
