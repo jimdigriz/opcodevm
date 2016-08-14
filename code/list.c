@@ -4,11 +4,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <pthread.h>
+#include <errno.h>
 
 #include "common.h"
 #include "engine.h"
 
 #define OPCODE list
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int OPCODE(OPCODE_PARAMS)
 {
@@ -16,6 +20,10 @@ static int OPCODE(OPCODE_PARAMS)
 
 	if (getenv("NODISP"))
 		goto exit;
+
+	errno = pthread_mutex_lock(&lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_lock(list)");
 
 	for (unsigned int o = 0; o < n; o++) {
 		for (unsigned int i = 0; C[i].ctype != VOID; i++) {
@@ -60,6 +68,10 @@ static int OPCODE(OPCODE_PARAMS)
 
 		printf("\n");
 	}
+
+	errno = pthread_mutex_unlock(&lock);
+	if (errno)
+		err(EX_OSERR, "pthread_mutex_unlock(list)");
 
 exit:
 	return 1;
