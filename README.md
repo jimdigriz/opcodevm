@@ -205,6 +205,7 @@ Not exposed (internally used when loading in data from `C<>`):
  * steroids:
      * [What Every Programmer Should Know About Memory](http://www.akkadia.org/drepper/cpumemory.pdf) (and [What Every Computer Scientist Should Know About Floating Point Arithmetic](http://cr.yp.to/2005-590/goldberg.pdf))
      * [`malloc()` tuning](http://www.gnu.org/software/libc/manual/html_node/Malloc-Tunable-Parameters.html)
+     * [memsql-perf-tools](https://github.com/memsql/memsql-perf-tools)
      * [`posix_madvise()`](http://www.freebsd.org/cgi/man.cgi?posix_madvise(2))
      * [GCC Optimization's](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html)
          * [Performance Tuning with GCC](http://www.redhat.com/magazine/011sep05/features/gcc/)
