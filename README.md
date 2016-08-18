@@ -17,6 +17,7 @@ Can be applied to:
  * support more that the two deep ('accelerated' and 'regular') op chains, might want to cycle through them to deal with alignment bits (maybe better to just guarantee alignment though?)
  * need to check in each op for any alignment needs, as after an offset change things might mis-aligned
  * implement scatter gather vector support (needed for datagram payloads)
+     * [AVX2](http://stackoverflow.com/questions/16193434/avx2-gather-instructions-load-address-calculation)
  * [10 SQL Tricks That You Didn’t Think Were Possible](https://blog.jooq.org/2016/04/25/10-sql-tricks-that-you-didnt-think-were-possible/) - operations that I need to be able to do
  * 32 bit support, though 4bn records would still be a limit
  * input sources
