@@ -11,12 +11,13 @@ void CTYPE(init)(DISPATCH_INIT_PARAMS)
 {
 	if (!C[i].width)
 		errx(EX_USAGE, "C[i].width");
+
+	C[i].addr = NULL;
 }
 
 void CTYPE(fini)(DISPATCH_FINI_PARAMS)
 {
-	(void)C;
-	(void)i;
+	C[i].addr = NULL;
 }
 
 unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
@@ -31,5 +32,6 @@ unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
 void CTYPE(put)(DISPATCH_PUT_PARAMS)
 {
 	free(C[i].addr);
+
 	C[i].addr = NULL;
 }
