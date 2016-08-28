@@ -86,6 +86,7 @@ static void hook(const void *args)
 
 static struct column *C;
 static unsigned int nrecs;
+long long instances;
 
 static void profile_init(const unsigned int length, const unsigned int width)
 {
@@ -101,7 +102,7 @@ static void profile_init(const unsigned int length, const unsigned int width)
 
 	C[1].ctype = VOID;
 
-	column_init(C, 1);
+	column_init(C);
 	nrecs = column_get(C);
 }
 

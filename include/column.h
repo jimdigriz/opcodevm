@@ -74,7 +74,18 @@ struct column {
 	};
 };
 
-void column_init(struct column *C, long long int insts);
+void column_init(struct column *C);
 void column_fini(struct column *C);
 unsigned int column_get(struct column *C);
 void column_put(struct column *C);
+
+#define DISPATCH_INIT_PARAMS	struct column *C, const unsigned int i
+#define DISPATCH_FINI_PARAMS	struct column *C, const unsigned int i
+#define DISPATCH_GET_PARAMS	struct column *C, const unsigned int i
+#define DISPATCH_PUT_PARAMS	struct column *C, const unsigned int i
+
+/* column/backed.c */
+void backed_init(DISPATCH_INIT_PARAMS);
+void backed_fini(DISPATCH_FINI_PARAMS);
+unsigned int backed_get(DISPATCH_GET_PARAMS);
+void backed_put(DISPATCH_PUT_PARAMS);

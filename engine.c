@@ -64,7 +64,8 @@ static struct opcode opcode_ret = {
 	.name	= "ret",
 };
 
-static long long instances;
+long long instances;
+unsigned int stride = 100000;	// FIXME
 
 void engine_init()
 {
@@ -171,7 +172,7 @@ void engine_run(struct program *program)
 	if (!eii)
 		err(EX_OSERR, "calloc()");
 
-	column_init(program->columns, instances);
+	column_init(program->columns);
 
 	unsigned int nC = 0;
 	while (program->columns[nC++].ctype != VOID) {}

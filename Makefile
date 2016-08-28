@@ -1,4 +1,4 @@
-SRCS		:= $(wildcard *.c)
+SRCS		:= $(wildcard *.c) $(wildcard column/*.c)
 OBJS		:= $(SRCS:%.c=%.o)
 
 CODESRCS	:= $(wildcard code/*.c)
@@ -58,7 +58,7 @@ include/jumptable.h: include/engine.h Makefile
 
 engine.o engine.l engine.v: include/jumptable.h Makefile
 
-utils/profile: utils/profile.o engine.o column.o Makefile
+utils/profile: utils/profile.o engine.o column.o $(filter column/%.o, $(OBJS)) Makefile
 	$(CROSS_COMPILE)$(CC) $(LDFLAGS) -ldl -lm -o $@ $(filter %.o, $^)
 ifndef NOSTRIP
 	$(CROSS_COMPILE)strip $@
