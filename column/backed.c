@@ -131,13 +131,13 @@ void backed_fini(DISPATCH_FINI_PARAMS)
 	C[i].addr = NULL;
 
 	if (close(C[i].backed.fd) == -1)
-		err(EX_OSERR, "close('%s')", C->backed.path);
-	C->backed.fd = -1;
+		err(EX_OSERR, "close('%s')", C[i].backed.path);
+	C[i].backed.fd = -1;
 }
 
 unsigned int backed_get(DISPATCH_GET_PARAMS)
 {
-	unsigned int dlen = C->width / 8 * stride;
+	unsigned int dlen = C[i].width / 8 * stride;
 	struct ringblkinfo *info;
 
 	EINTRSAFE(sem_wait, &C[i].backed.ring->has_data);
@@ -149,7 +149,7 @@ unsigned int backed_get(DISPATCH_GET_PARAMS)
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
 
-	info = (struct ringblkinfo *)((unsigned char *)C[i].addr + (dlen + (C->backed.ring->pagesize - (dlen % C[i].backed.ring->pagesize))));
+	info = (struct ringblkinfo *)((unsigned char *)C[i].addr + (dlen + (C[i].backed.ring->pagesize - (dlen % C[i].backed.ring->pagesize))));
 
 	return info->nrecs;
 }
