@@ -175,7 +175,8 @@ void engine_run(struct program *program)
 	column_init(program->columns);
 
 	unsigned int nC = 0;
-	while (program->columns[nC++].ctype != VOID) {}
+	while (program->columns[nC++].ctype != VOID)
+		;
 
 	for (int i = 0; i < instances; i++) {
 		eii[i].program	= program;
