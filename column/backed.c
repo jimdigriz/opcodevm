@@ -18,7 +18,9 @@
 #include "utils.h"
 #include "column.h"
 
-static void * backed_spool(void *arg)
+#define CTYPE(x) backed_##x
+
+static void * CTYPE(spool)(void *arg)
 {
 	struct column *C = arg;
 
@@ -56,7 +58,7 @@ static void * backed_spool(void *arg)
 	return NULL;
 }
 
-void backed_init(DISPATCH_INIT_PARAMS)
+void CTYPE(init)(DISPATCH_INIT_PARAMS)
 {
 	if (!C[i].width)
 		errx(EX_USAGE, "C[i].width");
@@ -111,13 +113,13 @@ void backed_init(DISPATCH_INIT_PARAMS)
 	if (sem_init(&C[i].backed.ring->has_room, 0, instances + 1) == -1)
 		err(EX_OSERR, "sem_init('%s', ring_has_room)", C[i].backed.path);
 
-	errno = pthread_create(&C[i].backed.ring->thread, NULL, backed_spool, &C[i]);
+	errno = pthread_create(&C[i].backed.ring->thread, NULL, CTYPE(spool), &C[i]);
 	if (errno)
-		err(EX_OSERR, "pthread_create(backed_spool, '%s')", C[i].backed.path);
+		err(EX_OSERR, "pthread_create(CTYPE(spool), '%s')", C[i].backed.path);
 	// FIXME pthread_setaffinity_np()
 }
 
-void backed_fini(DISPATCH_FINI_PARAMS)
+void CTYPE(fini)(DISPATCH_FINI_PARAMS)
 {
 	sem_destroy(&C[i].backed.ring->has_data);
 	sem_destroy(&C[i].backed.ring->has_room);
@@ -135,7 +137,7 @@ void backed_fini(DISPATCH_FINI_PARAMS)
 	C[i].backed.fd = -1;
 }
 
-unsigned int backed_get(DISPATCH_GET_PARAMS)
+unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
 {
 	unsigned int dlen = C[i].width / 8 * stride;
 	struct ringblkinfo *info;
@@ -154,7 +156,7 @@ unsigned int backed_get(DISPATCH_GET_PARAMS)
 	return info->nrecs;
 }
 
-void backed_put(DISPATCH_PUT_PARAMS)
+void CTYPE(put)(DISPATCH_PUT_PARAMS)
 {
 	if (sem_post(&C[i].backed.ring->has_room) == -1)
 		err(EX_OSERR, "sem_post('%s', ring_has_room)", C[i].backed.path);

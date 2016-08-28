@@ -84,8 +84,9 @@ void column_put(struct column *C);
 #define DISPATCH_GET_PARAMS	struct column *C, const unsigned int i
 #define DISPATCH_PUT_PARAMS	struct column *C, const unsigned int i
 
-/* column/backed.c */
-void backed_init(DISPATCH_INIT_PARAMS);
-void backed_fini(DISPATCH_FINI_PARAMS);
-unsigned int backed_get(DISPATCH_GET_PARAMS);
-void backed_put(DISPATCH_PUT_PARAMS);
+#define COLUMN_DEF(x)		void x##_init(DISPATCH_INIT_PARAMS);		\
+				void x##_fini(DISPATCH_FINI_PARAMS);		\
+				unsigned int x##_get(DISPATCH_GET_PARAMS);	\
+				void x##_put(DISPATCH_PUT_PARAMS);
+COLUMN_DEF(zero)
+COLUMN_DEF(backed)

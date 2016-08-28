@@ -10,13 +10,15 @@ struct dispatch {
 	void		(*put)(DISPATCH_PUT_PARAMS);
 };
 
+#define COLUMN_DISPATCH(x, y)	[x]	= {			\
+					.get	= y##_get,	\
+					.put	= y##_put,	\
+					.init	= y##_init,	\
+					.fini	= y##_fini,	\
+				}
 static struct dispatch dispatch[] = {
-	[BACKED]	= {
-		.init	= backed_init,
-		.fini	= backed_fini,
-		.get	= backed_get,
-		.put	= backed_put,
-	},
+	COLUMN_DISPATCH(ZERO, zero),
+	COLUMN_DISPATCH(BACKED, backed),
 };
 
 void column_init(struct column *C)
