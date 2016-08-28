@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <errno.h>
 
-#include "common.h"
+#include "utils.h"
 #include "engine.h"
 
 #define OPCODE list

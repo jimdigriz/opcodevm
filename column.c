@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#include "utils.h"
 #include "column.h"
 
 #define DISPATCH_INIT_PARAMS	struct column *C, const unsigned int i
@@ -31,22 +32,14 @@ struct dispatch {
 static long long int instances;
 static unsigned int stride;
 
-#define SEM_WAIT(x, y, z)	do { 								\
-					int n = sem_wait(x);					\
-					if (n == -1) {						\
-						if (errno == EINTR)				\
-							continue;				\
-						err(EX_OSERR, "sem_wait('%s', "#y")", z);	\
-					} else if (n == 0)					\
-						break;						\
-				} while (1)
-
 static void * backed_spool(void *arg)
 {
 	struct column *C = arg;
 
 	unsigned int dlen = C->width / 8 * stride;
-	unsigned int i = instances + 1;	// sneaky hook to push empty blocks into ring
+	// sneaky hook to push empty blocks into ring
+	// causes i calls to read() below returning EOF
+	unsigned int i = instances + 1;
 
 	// https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-8%3A-Ring-Buffer-Example#correct-implementation-of-a-ring-buffer
 	do {
@@ -55,23 +48,18 @@ static void * backed_spool(void *arg)
 		struct ringblkinfo *info;
 		unsigned int o = 0;
 
-		SEM_WAIT(&C->backed.ring->has_room, ring_has_room, C->backed.path);
+		EINTRSAFE(sem_wait, &C->backed.ring->has_room);
 
 		b = (unsigned char *)C->backed.ring->addr + (C->backed.ring->in++ % (instances + 1)) * C->backed.ring->blen;
 		info = (struct ringblkinfo *)(b + (dlen + (C->backed.ring->pagesize - (dlen % C->backed.ring->pagesize))));
 
 		do {
-			n = read(C->backed.fd, b + o, dlen - o);
-			if (n == 0)
-				i--;
-			else if (n == -1) {
-				if (errno == EINTR)
-					continue;
-				err(EX_OSERR, "read('%s')", C->backed.path);
-			}
-
+			n = EINTRSAFE(read, C->backed.fd, b + o, dlen - o);
 			o += n;
 		} while (n && o < dlen);
+
+		if (n == 0)
+			i--;
 
 		info->nrecs = o * 8 / C->width;
 
@@ -166,7 +154,7 @@ static unsigned int backed_get(DISPATCH_GET_PARAMS)
 	unsigned int dlen = C->width / 8 * stride;
 	struct ringblkinfo *info;
 
-	SEM_WAIT(&C[i].backed.ring->has_data, ring_has_data, C[i].backed.path);
+	EINTRSAFE(sem_wait, &C[i].backed.ring->has_data);
 	errno = pthread_mutex_lock(&C[i].backed.ring->lock);
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_lock('%s')", C[i].backed.path);

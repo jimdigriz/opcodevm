@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <x86intrin.h>
 
-#include "common.h"
+#include "utils.h"
 #include "engine.h"
 
 #define OPCODE	bswap

@@ -4,7 +4,7 @@
 #include <sysexits.h>
 #include <pthread.h>
 
-#include "common.h"
+#include "utils.h"
 #include "engine.h"
 
 #define OPCODE bswap
