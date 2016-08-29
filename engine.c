@@ -147,8 +147,6 @@ compile:
 	if (eii->program->insns[0].code)
 		goto compiled_already;
 
-	assert(strcmp(eii->program->insns[0].name, "ret"));
-
 	for (unsigned int i = 0; i < eii->program->len; i++) {
 		struct opcode *np;
 		SLIST_FOREACH(np, &opcode_list, opcode) {
