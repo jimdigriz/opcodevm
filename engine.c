@@ -64,12 +64,17 @@ static struct opcode opcode_ret = {
 	.name	= "ret",
 };
 
+long pagesize;
 long long instances;
 unsigned int stride = 100000;	// FIXME
 
 void engine_init()
 {
 	errno = 0;
+
+	pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
+		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	instances = 1;
 	if (getenv("INSTANCES"))

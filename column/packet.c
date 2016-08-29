@@ -4,6 +4,7 @@
 #include <pcap/pcap.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "global.h"
 #include "column.h"
@@ -49,7 +50,10 @@ unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
 {
 	int ret;
 
-	C[i].addr = calloc(stride, C[i].width / 8);
+	errno = posix_memalign(&C[i].addr, pagesize, stride * C[i].width / 8);
+	if (errno)
+		err(EX_OSERR, "posix_memalign()");
+
 	C[i].packet.nrecs = 0;
 
 	ret = pcap_dispatch(C[i].packet.pcap, stride, CTYPE(cb), (u_char *)&C[i]);

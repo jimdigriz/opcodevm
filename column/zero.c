@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <err.h>
 #include <sysexits.h>
+#include <string.h>
+#include <errno.h>
 
 #include "global.h"
 #include "column.h"
@@ -22,9 +24,11 @@ void CTYPE(fini)(DISPATCH_FINI_PARAMS)
 
 unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
 {
-	C[i].addr = calloc(stride, C[i].width/8);
-	if (!C[i].addr)
-		err(EX_OSERR, "calloc()");
+	errno = posix_memalign(&C[i].addr, pagesize, stride * C[i].width / 8);
+	if (errno)
+		err(EX_OSERR, "posix_memalign()");
+
+	memset(C[i].addr, 0, stride * C[i].width / 8);
 
 	return stride;
 }

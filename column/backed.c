@@ -39,7 +39,7 @@ static void * CTYPE(spool)(void *arg)
 		EINTRSAFE(sem_wait, &C->backed.ring->has_room);
 
 		b = (unsigned char *)C->backed.ring->addr + (C->backed.ring->in++ % (instances + 1)) * C->backed.ring->blen;
-		info = (struct ringblkinfo *)(b + (dlen + (C->backed.ring->pagesize - (dlen % C->backed.ring->pagesize))));
+		info = (struct ringblkinfo *)(b + (dlen + (pagesize - (dlen % pagesize))));
 
 		do {
 			n = EINTRSAFE(read, C->backed.fd, b + o, dlen - o);
@@ -88,15 +88,15 @@ void CTYPE(init)(DISPATCH_INIT_PARAMS)
 	C[i].backed.ring->in = 0;
 	C[i].backed.ring->out = 0;
 
-	C[i].backed.ring->pagesize = sysconf(_SC_PAGESIZE);
-	if (C[i].backed.ring->pagesize == -1)
+	pagesize = sysconf(_SC_PAGESIZE);
+	if (pagesize == -1)
 		err(EX_OSERR, "sysconf(_SC_PAGESIZE)");
 
 	C[i].backed.ring->blen = C[i].width / 8 * stride;
-	C[i].backed.ring->blen += C[i].backed.ring->pagesize - (C[i].backed.ring->blen % C[i].backed.ring->pagesize);
+	C[i].backed.ring->blen += pagesize - (C[i].backed.ring->blen % pagesize);
 
 	C[i].backed.ring->blen += sizeof(struct ringblkinfo);
-	C[i].backed.ring->blen += C[i].backed.ring->pagesize - (C[i].backed.ring->blen % C[i].backed.ring->pagesize);
+	C[i].backed.ring->blen += pagesize - (C[i].backed.ring->blen % pagesize);
 
 	C[i].backed.ring->addr = mmap(NULL, (instances + 1) * C[i].backed.ring->blen, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
 	if (C[i].backed.ring->addr == MAP_FAILED)
@@ -151,7 +151,7 @@ unsigned int CTYPE(get)(DISPATCH_GET_PARAMS)
 	if (errno)
 		err(EX_OSERR, "pthread_mutex_unlock('%s')", C[i].backed.path);
 
-	info = (struct ringblkinfo *)((unsigned char *)C[i].addr + (dlen + (C[i].backed.ring->pagesize - (dlen % C[i].backed.ring->pagesize))));
+	info = (struct ringblkinfo *)((unsigned char *)C[i].addr + (dlen + (pagesize - (dlen % pagesize))));
 
 	return info->nrecs;
 }
