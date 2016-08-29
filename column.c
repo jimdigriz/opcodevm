@@ -19,6 +19,7 @@ struct dispatch {
 static struct dispatch dispatch[] = {
 	COLUMN_DISPATCH(ZERO, zero),
 	COLUMN_DISPATCH(BACKED, backed),
+	COLUMN_DISPATCH(PACKET, packet),
 };
 
 void column_init(struct column *C)

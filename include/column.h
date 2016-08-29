@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/stat.h>
+#include <pcap/pcap.h>
 
 #define MAX_FILEPATH_LENGTH	1000
 
@@ -57,7 +58,9 @@ struct column_ctype_cast {
 };
 
 struct column_ctype_packet {
-	int		sock;
+	pcap_t		*pcap;
+	unsigned int	nrecs;
+	char		path[MAX_FILEPATH_LENGTH];
 };
 
 struct column {
@@ -90,3 +93,4 @@ void column_put(struct column *C);
 				void x##_put(DISPATCH_PUT_PARAMS);
 COLUMN_DEF(zero)
 COLUMN_DEF(backed)
+COLUMN_DEF(packet)

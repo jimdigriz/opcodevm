@@ -45,6 +45,13 @@ Can be applied to:
 # Preflight
 
  * OpenCL 1.2 dev ([`ocl-icd-opencl-dev`](https://packages.debian.org/search?keywords=ocl-icd-opencl-dev) and [`opencl-headers`](https://packages.debian.org/search?keywords=opencl-headers))
+ * [`libpcap`](http://www.tcpdump.org/) - tested with version 1.6.2
+
+## Debian
+
+    apt-get install ocl-icd-opencl-dev opencl-headers libpcap-dev
+
+# Build
 
 Simply type:
 
@@ -232,3 +239,6 @@ Not exposed (internally used when loading in data from `C<>`):
  * [The Virginian Database](https://github.com/bakks/virginian) - GPU bytecode database
      * [`src/vm/vm_gpu.cu`](https://github.com/bakks/virginian/blob/master/src/vm/vm_gpu.cu) is interesting
  * [kdb - TRILLION ROW BENCHMARKS](http://kparc.com/q4/readme.txt) - source code and notes are in the parent directory
+ * PCAP
+     * [wireshark - Sample Captures](https://wiki.wireshark.org/SampleCaptures)
+     * [Publicly available PCAP files](http://www.netresec.com?page=PcapFiles)
