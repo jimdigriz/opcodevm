@@ -216,6 +216,7 @@ Not exposed (internally used when loading in data from `C<>`):
      * [`malloc()` tuning](http://www.gnu.org/software/libc/manual/html_node/Malloc-Tunable-Parameters.html)
      * [memsql-perf-tools](https://github.com/memsql/memsql-perf-tools)
      * [`posix_madvise()`](http://www.freebsd.org/cgi/man.cgi?posix_madvise(2))
+     * [Optimizing Indirect Memory References with `milk`](http://delivery.acm.org/10.1145/2970000/2967948/p299-kiriansky.pdf)
      * [GCC Optimization's](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html)
          * [Performance Tuning with GCC](http://www.redhat.com/magazine/011sep05/features/gcc/)
          * [`-ffast-math` and `-Ofast`](http://programerror.com/2009/09/when-gccs-ffast-math-isnt/)
