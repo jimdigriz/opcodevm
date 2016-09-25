@@ -230,6 +230,7 @@ Not exposed (internally used when loading in data from `C<>`):
          * [Auto-vectorization with gcc 4.7](http://locklessinc.com/articles/vectorize/)
          * [Using the Vectorizer [in GCC]](https://gcc.gnu.org/projects/tree-ssa/vectorization.html#using)
          * [Linaro: Using GCC Auto-Vectorizer](http://www.slideshare.net/linaroorg/using-gcc-autovectorizer)
+ * [Dr. Strangetemplate - Or How I Learned to Stop Worrying and Love C++ Templates](https://github.com/MCGallaspy/dr_strangetemplate)
  * investigate [Blosc](http://www.blosc.org/) and its [c-blosc](https://github.com/Blosc/c-blosc) library
  * [Concurrency Kit](http://concurrencykit.org/)
  * [ClickHouse](https://github.com/yandex/ClickHouse) - analytic DBMS for big data
