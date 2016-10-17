@@ -96,6 +96,7 @@ The following environment variables are available:
  * [Opendata CERN](http://opendata.cern.ch/research/CMS)
  * [NY Exchange Sample TAQ](ftp://ftp.nyxdata.com/Historical%20Data%20Samples/Daily%20TAQ/)
  * [Bureau of Transportation Statistics - USA domestic flights with information about flight length and delays](http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time) - also has lots of other data
+ * [TLC Trip Record Data](http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml)
 
 ## HistData Example
 
