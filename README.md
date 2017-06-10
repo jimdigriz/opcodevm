@@ -233,6 +233,7 @@ Not exposed (internally used when loading in data from `C<>`):
          * [Linaro: Using GCC Auto-Vectorizer](http://www.slideshare.net/linaroorg/using-gcc-autovectorizer)
      * [How to allocate memory](http://geocar.sdf1.org/alloc.html) - move off `malloc()`/etc
  * [Dr. Strangetemplate - Or How I Learned to Stop Worrying and Love C++ Templates](https://github.com/MCGallaspy/dr_strangetemplate)
+ * [MOG (MIMD On GPU)](http://aggregate.org/MOG/)
  * investigate [Blosc](http://www.blosc.org/) and its [c-blosc](https://github.com/Blosc/c-blosc) library
  * [Concurrency Kit](http://concurrencykit.org/)
  * [ClickHouse](https://github.com/yandex/ClickHouse) - analytic DBMS for big data
