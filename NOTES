@@ -1,0 +1,5 @@
+2x large buffers per instance used as a ring buffer ('buffer')
+eats through each buffer in half-L2 lengths ('chunk')
+
+get -> flips between larges buffers transparently and moves to next chunk
+put -> registers we have finished with the chunk
