@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <err.h>
 #include <sysexits.h>
-#include <pthread.h>
 
 #include "utils.h"
 #include "engine.h"
@@ -31,21 +30,21 @@ static int OPCODE(OPCODE_PARAMS)
 {
 	const struct opcode_bswap *p = ops;
 
-	assert(WIDTH2POS(C[p->dest].width) >= WIDTH2POS(16) && WIDTH2POS(C[p->dest].width) <= WIDTH2POS(64));
+	assert(WIDTH2POS(C[p->dst].width) >= WIDTH2POS(16) && WIDTH2POS(C[p->dst].width) <= WIDTH2POS(64));
 
-	if (C[p->dest].ctype == BACKED) {
-		if (p->target == HOST && C[p->dest].backed.endian == endian)
+	if (C[p->dst].ctype == BACKED) {
+		if (p->target == HOST && C[p->dst].backed.endian == endian)
 			goto exit;
 
-		if (p->target == C[p->dest].backed.endian)
+		if (p->target == C[p->dst].backed.endian)
 			goto exit;
 	}
 
-	unsigned int slot = SLOTS * WIDTH2POS(C[p->dest].width);
+	unsigned int slot = SLOTS * WIDTH2POS(C[p->dst].width);
 	unsigned int o = 0;
 	while (o < n)
 		if (n - o >= D[slot].cost)
-			D[slot++].func(&C[p->dest], n, &o);
+			D[slot++].func(&C[p->dst], n, &o);
 
 exit:
 	return 1;
@@ -117,7 +116,7 @@ static void profile_fini()
 static void profile()
 {
 	struct opcode_bswap ops = {
-		.dest	= 0,
+		.dst	= 0,
 		.target	= HOST,
 	};
 	OPCODE(C, nrecs, &ops);

@@ -21,8 +21,8 @@ typedef enum {
 typedef enum {
 	VOID	= 0,
 	ZERO,
+	INDIRECT,
 	BACKED,
-	CAST,
 	PACKET,
 } column_type_t;
 
@@ -40,6 +40,10 @@ struct ringblkinfo {
 	unsigned int	nrecs;
 };
 
+struct column_ctype_indirect {
+	column_type_t	type;
+};
+
 struct column_ctype_backed {
 	struct ring	*ring;
 	unsigned int	nrecs;
@@ -48,13 +52,6 @@ struct column_ctype_backed {
 	unsigned int	offset;
 	int		fd;
 	char		path[MAX_FILEPATH_LENGTH];
-};
-
-struct column_ctype_cast {
-	unsigned int	src;
-	unsigned int	offset;
-	int		shift;
-	unsigned int	mask;
 };
 
 struct column_ctype_packet {
@@ -71,8 +68,8 @@ struct column {
 
 #	define COLUMN_CTYPE(x) struct column_ctype_##x	x;
 	union {
+		COLUMN_CTYPE(indirect)
 		COLUMN_CTYPE(backed)
-		COLUMN_CTYPE(cast)
 		COLUMN_CTYPE(packet)
 	};
 };
@@ -92,5 +89,6 @@ void column_put(struct column *C);
 				unsigned int x##_get(DISPATCH_GET_PARAMS);	\
 				void x##_put(DISPATCH_PUT_PARAMS);
 COLUMN_DEF(zero)
+COLUMN_DEF(indirect)
 COLUMN_DEF(backed)
 COLUMN_DEF(packet)

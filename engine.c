@@ -160,6 +160,8 @@ compile:
 #				pragma GCC diagnostic ignored "-Wpedantic"
 				eii->program->insns[i].code = (uintptr_t)&&bytecode0 + cf[np->bytecode];
 #				pragma GCC diagnostic pop
+				if (np->compile)
+					np->compile(&eii->program->insns[i].ops);
 				break;
 			}
 		}

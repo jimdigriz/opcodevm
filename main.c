@@ -2,6 +2,7 @@
 #include "engine.h"
 
 static struct column columns[] = {
+#if 0
 	{
 		.ctype	= BACKED,
 		.width	= 32,
@@ -11,30 +12,45 @@ static struct column columns[] = {
 			.endian	= BIG,
 		},
 	},
-#if 0
+#endif
 	{
-		.ctype	= CAST,
-		.width	= 16,
-		.type	= UNSIGNED,
-		.cast	= {
-			.src	= 0,
-			.offset	= 16,
-			.shift	= 16,
-			.mask	= 0xffff,
+		.ctype	= PACKET,
+		.width	= 2048 * 8,
+		.packet	= {
+			.path	= "store/test.pcap",
 		},
 	},
-#endif
+	{
+		.ctype	= INDIRECT,
+	},
 	{
 		.ctype	= VOID,
 	}
 };
 
 static struct insn insns[] = {
+#if 0
 	{
 		.name		= "bswap",
 		.ops.bswap	= {
-			.dest	= 0,
+			.dst	= 0,
 			.target	= HOST,
+		},
+	},
+	{
+		.name		= "ld",
+		.ops.ld		= {
+			.c	= 1,	// if points to indirect type, then k is column source
+			.k	= 0,
+		},
+	},
+#endif
+	{
+		.name		= "alu",
+		.ops.alu	= {
+			.c	= 0,
+			.k	= 2,
+			.op	= "add",
 		},
 	},
 	{

@@ -1,5 +1,5 @@
 struct opcode_bswap {
-	unsigned int	dest;
+	unsigned int	dst;
 	endian_t	target;
 };
 

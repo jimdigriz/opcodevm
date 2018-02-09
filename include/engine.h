@@ -15,6 +15,7 @@ struct opcode {
 
 	int		(*func)(OPCODE_PARAMS);
 	void		(*hook)(const void *imp);
+	void		(*compile)(void *ops);
 
 	void		(*profile_init)(const unsigned int length, const unsigned int width);
 	void		(*profile_fini)();
@@ -24,12 +25,16 @@ struct opcode {
 	unsigned int	bytecode;
 };
 
+#include "code/ld.h"
+#include "code/alu.h"
 #include "code/bswap.h"
 
 struct insn {
 	ptrdiff_t	code;
 
 	union {
+		struct opcode_ld	ld;
+		struct opcode_alu	alu;
 		struct opcode_bswap	bswap;
 	} ops;
 
